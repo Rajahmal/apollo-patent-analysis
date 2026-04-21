@@ -1,0 +1,48 @@
+# General
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.DS_Store
+
+# Virtual Environment
+venv/
+.venv/
+env/
+.env
+
+# Streamlit
+.streamlit/secrets.toml
+
+# IDEs
+.vscode/
+.idea/
+
+# Distribution / Builds
+build/
+dist/
+*.egg-info/
+
+# Claude Code — personal settings のみ除外（.claude/skills/ は公開アセット）
+.claude/settings.json
+.claude/settings.local.json
+.claude/claude_desktop_config.json
+
+# Gemini/Antigravity specific
+.gemini/
+
+# 旧 CAPCOM output ディレクトリ (In-Memory化により不要になったが、念のため除外)
+output/
+
+# バックアップ・テンポラリ
+*.bak
+*.orig
+*~
+*.swp
+*.swo
+
+# テストデータ
+test_data/
+
+# OS固有
+Thumbs.db

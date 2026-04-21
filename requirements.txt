@@ -1,0 +1,15 @@
+streamlit==1.41.1
+patiroha[all]
+numpy<2.0.0
+setuptools
+sentence-transformers>=3.0,<4
+transformers>=4.44,<5
+plotly
+matplotlib
+wordcloud==1.9.4
+openpyxl
+kaleido
+python-pptx
+Pillow
+requests
+google-generativeai

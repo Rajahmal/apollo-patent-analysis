@@ -1,0 +1,82 @@
+# Phase B STOP-GATE 1 — クロスモジュールパターン3つ選定用テンプレ
+
+SKILL.md §Phase B STOP-GATE 1 の `ask_user_question` 呼び出し用雛形。
+
+---
+
+## 前提
+
+`capcom_schema/analysis/cross_module.md` を読了済みであること。13種のクロスパターン（P1-P13）の内容を把握した上でこのテンプレを使う。
+
+---
+
+## 使い方
+
+1. Mission Objective との整合性で **Agent推奨3つ** を選ぶ（★マーク）
+2. 13パターン全てを提示し、ユーザーが3つ選択する形式にする
+3. `ask_user_question` の `multiSelect: true` で呼び出し
+
+---
+
+## ask_user_question 呼び出しフォーマット
+
+```yaml
+question: "採用するクロスモジュール分析パターンを3つ選んでください（★がAgent推奨）。選んだパターンでPhase B本体を進めます。"
+header: "クロス選定"
+multiSelect: true
+options:
+  - label: "★ P1: <パターン名>"
+    description: "<モジュール組み合わせ + 1行要旨 + Mission Objective との関連度>"
+  - label: "★ P4: <パターン名>"
+    description: "<同上>"
+  - label: "★ P13: <パターン名>"
+    description: "<同上>"
+  - label: "P2: <パターン名>"
+    description: "<同上>"
+  - label: "P3: <パターン名>"
+    description: "<同上>"
+  # ... 以下 P5-P12 を全て列挙
+```
+
+**Agent推奨（★）の選び方**:
+- Mission Objective と最も直結するパターンを1つ
+- データの強み（例: Saturn V クラスタ多数、MEGA 4象限の QI が多い等）を活かすパターンを1つ
+- 不明点を解消できるパターン（例: ノイズ分析 → 学術論文ギャップ）を1つ
+
+---
+
+## 具体例
+
+Mission Objective が「全固体電池市場の競争優位分析」の場合：
+
+```yaml
+question: "採用するクロスモジュール分析パターンを3つ選んでください（★がAgent推奨）。"
+header: "クロス選定"
+multiSelect: true
+options:
+  - label: "★ P1: Saturn V × MEGA（クラスタ動態）"
+    description: "AI分類クラスタごとのCAGR比較で成長/衰退を判定"
+  - label: "★ P4: CORE × ATLAS（出願人集中度）"
+    description: "ルール分類×出願人HHIで寡占状況を時系列可視化"
+  - label: "★ P13: NEBULA × Saturn V（学術ギャップ）"
+    description: "学術クラスタと特許クラスタの対応関係から未特許化領域を抽出"
+  - label: "P2: Saturn V × Explorer（技術×キーワード）"
+    description: "クラスタ内の頻出キーワードで技術トレンド言語化"
+  # P3-P12 も列挙
+```
+
+---
+
+## ゲート通過の条件
+
+- ユーザーが3つ選択 → 確定、Phase B 本体作業へ
+- ユーザーが4つ以上選択 → 確認し「3つに絞ってください」と再要求
+- ユーザーが2つ以下 → 「追加で選んでください」と再要求
+- Other で自由記入 → 選ばれたカスタムパターンを受け入れ、同時に既存のPx と組み合わせて3つにするか確認
+
+---
+
+## 禁止事項
+
+- **Agent側で勝手に3つ確定して進めるのは禁止**（SKILL.md §0 第2項）
+- 「Agent推奨で進めます」とユーザー確認なしに宣言してはならない。必ず `ask_user_question` を呼び出す
