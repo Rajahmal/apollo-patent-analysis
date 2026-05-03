@@ -44,6 +44,9 @@ feature_names = st.session_state.get("feature_names")
 
 has_embeddings = embeddings is not None and len(embeddings) > 0
 
+applicant_col = "applicant_main"
+year_col = "year"
+
 # ─────────────────────────────────────────────
 # データ状態パネル
 # ─────────────────────────────────────────────
@@ -51,7 +54,6 @@ with st.container(border=True):
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("特許件数", f"{len(df_main):,} 件")
 
-    year_col = "year"
     if year_col in df_main.columns:
         valid_years = df_main[year_col].dropna()
         c2.metric(
@@ -61,7 +63,6 @@ with st.container(border=True):
     else:
         c2.metric("年範囲", "—")
 
-    applicant_col = "applicant_main"
     if applicant_col in df_main.columns:
         c3.metric("出願人数", f"{df_main[applicant_col].nunique():,} 社")
     else:
@@ -98,7 +99,6 @@ def _build_landscape_fig(
         color = colors[i % len(colors)]
         label_text = label_map.get(int(cid), f"クラスタ {cid}")
 
-        # 凸包（3点以上の場合のみ）
         if len(xs) >= 3:
             try:
                 points = np.column_stack([xs, ys])
@@ -118,7 +118,6 @@ def _build_landscape_fig(
             except Exception:
                 pass
 
-        # 散布点
         hover_titles = (
             df.loc[mask, title_col].fillna("").tolist()
             if title_col and title_col in df.columns
@@ -133,7 +132,6 @@ def _build_landscape_fig(
             hovertemplate="%{hovertext}<extra>" + label_text + "</extra>",
         ))
 
-        # クラスタラベルアノテーション
         mx, my = float(np.median(xs)), float(np.median(ys))
         fig.add_annotation(
             x=mx, y=my, text=label_text, showarrow=False,
@@ -142,7 +140,6 @@ def _build_landscape_fig(
             bordercolor=color, borderwidth=1, borderpad=3,
         )
 
-    # ノイズ点
     noise_mask = labels == -1
     if noise_mask.sum() > 0:
         fig.add_trace(go.Scattergl(
@@ -272,7 +269,6 @@ def run_landscape_analysis():
     result = patiroha.build_landscape(embeddings, min_cluster_size=15)
     labels = np.array(result.labels)
 
-    # UMAP 座標の取得（API差異に対応）
     if hasattr(result, "umap_x"):
         umap_x = np.array(result.umap_x)
         umap_y = np.array(result.umap_y)
@@ -280,7 +276,6 @@ def run_landscape_analysis():
         umap_x = np.array(result.x)
         umap_y = np.array(result.y)
 
-    # クラスタラベリング用テキスト結合
     title_col = col_map.get("title", "")
     abstract_col = col_map.get("abstract", "")
     texts = []
@@ -295,7 +290,6 @@ def run_landscape_analysis():
     label_map = patiroha.auto_label(texts, labels.tolist(), method="c-tfidf", top_n=5)
     fig = _build_landscape_fig(df_main, labels, umap_x, umap_y, label_map)
 
-    # クラスタ集計
     cluster_summary = []
     for cid in sorted(set(labels)):
         if cid == -1:
@@ -409,7 +403,6 @@ def run_temporal_analysis():
 
     quad_fig = _build_quadrant_fig(momentum_df, threshold_x, threshold_y)
 
-    # 全体 CAGR（patiroha）
     try:
         overall_cagr_obj = patiroha.calculate_cagr(df_main, year_col=year_col)
         overall_cagr = (
@@ -420,7 +413,6 @@ def run_temporal_analysis():
     except Exception:
         overall_cagr = 0.0
 
-    # 象限名（CAPCOM 保存用）
     def _qname(row):
         if row["cagr"] >= threshold_x and row["activity"] >= threshold_y:
             return "Growth Leader"
@@ -556,7 +548,7 @@ with tab1:
             ],
             output_format="## 1. 主要技術クラスタの解説\n## 2. 注目クラスタ（理由付き）\n## 3. 技術空白・ホワイトスペース",
         )
-        utils_ai.render_ai_insight_button(prompt, key="autopilot_landscape_ai")
+        utils_ai.render_ai_insight_button(prompt, "autopilot_landscape_ai")
 
 
 # ── Tab 2: 競合・出願人分析 ──
@@ -569,7 +561,6 @@ with tab2:
     if bar_fig is None:
         st.warning("競合分析結果がありません（出願人カラムが必要です）。")
     else:
-        # 多様性指標カード
         if div is not None:
             dm1, dm2, dm3 = st.columns(3)
             hhi_val = float(getattr(div, "hhi", 0))
@@ -606,7 +597,7 @@ with tab2:
             constraints=["内部ファイル名・フィールド名を本文に記載しないこと"],
             output_format="## 1. 主要出願人の戦略分析\n## 2. 市場集中度の評価\n## 3. 競合動向の注目点",
         )
-        utils_ai.render_ai_insight_button(prompt, key="autopilot_applicant_ai")
+        utils_ai.render_ai_insight_button(prompt, "autopilot_applicant_ai")
 
 
 # ── Tab 3: 時系列トレンド ──
@@ -671,7 +662,7 @@ with tab3:
             constraints=["内部ファイル名・フィールド名を本文に記載しないこと"],
             output_format="## 1. トレンドサマリー\n## 2. 注目出願人（Growth Leader・Emerging）\n## 3. 将来予測・示唆",
         )
-        utils_ai.render_ai_insight_button(prompt, key="autopilot_trend_ai")
+        utils_ai.render_ai_insight_button(prompt, "autopilot_trend_ai")
 
 
 # ─────────────────────────────────────────────
