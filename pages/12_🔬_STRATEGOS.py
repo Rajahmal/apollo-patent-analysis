@@ -19,7 +19,7 @@ utils.configure_matplotlib_font()
 utils.render_sidebar()
 
 st.title("🔬 STRATEGOS")
-st.caption(に常に見えない各社の技術戦略をあぶり出し、未来の技術トレンドを洞察する戦略インテリジェンスエンジン")
+st.caption("通常見えない各社の技術戦略をあぶり出し、未来の技術トレンドを洞察する戦略インテリジェンスエンジン")
 
 if not st.session_state.get("preprocess_done", False):
     st.warning("⚠️ 前処理が未完了です。Mission Control（Home）でデータを読み込んでください。")
@@ -102,7 +102,7 @@ def run_trajectory_analysis(umap_x, umap_y):
             y_mask = c_mask & (df_main[YEAR_COL] == year).values
             if y_mask.sum() < min_pts:
                 continue
-            # 高次元重心 → 最近傇15件のUMAP座標平均で投影
+            # 高次元重心 → 最近傍15件のUMAP座標平均で投影
             centroid = emb_norm[y_mask].mean(axis=0)
             sims = np.dot(emb_norm, centroid)
             k = min(15, int(y_mask.sum()))
@@ -247,7 +247,7 @@ def run_overlap_analysis():
     n = len(companies)
     if n < 2:
         return None
-    # 最新年共通期間の重複度マットリクス
+    # 共通期間の平均重複度マトリクス
     overlap_matrix = np.zeros((n, n))
     for i, c1 in enumerate(companies):
         for j, c2 in enumerate(companies):
@@ -304,14 +304,14 @@ def build_overlap_fig(overlap_data):
         colorbar=dict(title="技術重複度", thickness=14),
     ))
     utils.update_fig_layout(
-        fig, "企業間 技術ポートフォリオ重複度マットリクス",
+        fig, "企業間 技術ポートフォリオ重複度マトリクス",
         height=max(400, 40 * len(companies) + 120), show_legend=False,
     )
     return fig
 
 
 def run_future_insight():
-    """未来洞察: 出願トレンド外挑 + 成長/縮小企業ランキング"""
+    """未来洞察: 出願トレンド外挿 + 成長/縮小企業ランキング"""
     if not has_year:
         return None
     current_max = int(df_main[YEAR_COL].dropna().max())
@@ -342,7 +342,7 @@ def run_future_insight():
     if len(overall_yrs) >= 3:
         recent_o = sorted(overall_yrs)[-6:]
         cnts_o = [int(overall_yc.get(y, 0)) for y in recent_o]
-        s_o, i_o, _, _, _ = linregress(recent_o, cnts_o)
+        s_o, _, _, _, _ = linregress(recent_o, cnts_o)
         overall_slope = round(float(s_o), 1)
     else:
         overall_slope = 0.0
@@ -417,8 +417,7 @@ if run_clicked:
             })
             if shift_ev:
                 capcom.save_data("strategos_shift_events.json", {
-                    "module": "STRATEGOS",
-                    "shift_events": shift_ev,
+                    "module": "STRATEGOS", "shift_events": shift_ev,
                 })
             if ov and ov.get("encroachment_pairs"):
                 capcom.save_data("strategos_competitive.json", {
@@ -471,8 +470,7 @@ with tab1:
             dy = tv[yrs[-1]]["y"] - tv[yrs[0]]["y"]
             dist = (dx ** 2 + dy ** 2) ** 0.5
             rows.append({"企業": company, "開始年": yrs[0], "終了年": yrs[-1],
-                         "年数": len(yrs),
-                         "移動距離": round(dist, 3),
+                         "年数": len(yrs), "移動距離": round(dist, 3),
                          "動向": "大きく移動" if dist > 2 else "中程度" if dist > 0.5 else "安定"})
         traj_df = pd.DataFrame(rows).sort_values("移動距離", ascending=False)
         st.dataframe(traj_df, use_container_width=True, hide_index=True)
@@ -521,7 +519,7 @@ with tab2:
         if shift_ev:
             st.subheader("🚨 顕著な戦略シフトイベント（JSD > 0.3）")
             ev_df = pd.DataFrame(shift_ev)
-            ev_df.columns = ["企業", "年", "JSD（変化度）", "新規取得IPC", "撃減IPC"]
+            ev_df.columns = ["企業", "年", "JSD（変化度）", "新規取得IPC", "撤退IPC"]
             st.dataframe(ev_df.sort_values("JSD（変化度）", ascending=False),
                          use_container_width=True, hide_index=True)
         else:
@@ -560,7 +558,7 @@ with tab3:
     st.subheader("🎯 競合侵食マトリクス")
     st.caption(
         "企業間の技術ポートフォリオ重複度（コサイン類似度）とその経時変化。"
-        "重複度が上昇したペアは競合が激化、下降は差別化・分業化を示す。"
+        "重複度が上昇したペアは競合が激化、下降は差別化・分業化を示唆する。"
     )
     ov = st.session_state.get("strategos_overlap")
     if ov is None:
@@ -571,7 +569,8 @@ with tab3:
         enc = ov.get("encroachment_pairs", [])
         if enc:
             st.subheader("🔴 競合動態変化 上位ペア")
-            enc_df = pd.DataFrame(enc)[["company_a", "company_b", "early_overlap", "recent_overlap", "delta", "trend"]]
+            enc_df = pd.DataFrame(enc)[["company_a", "company_b", "early_overlap",
+                                        "recent_overlap", "delta", "trend"]]
             enc_df.columns = ["企業A", "企業B", "初期重複度", "最近重複度", "変化量", "動向"]
             st.dataframe(enc_df.sort_values("変化量", key=abs, ascending=False),
                          use_container_width=True, hide_index=True)
@@ -591,7 +590,7 @@ with tab3:
                 role="競合インテリジェンス専門家",
                 context=(
                     "企業間の技術ポートフォリオの意味的重複度とその経時変化データ。"
-                    "重複度の増加は競合侵食、減少は差別化・分業化を示唉する。"
+                    "重複度の増加は競合侵食、減少は差別化・分業化を示唆する。"
                 ),
                 data_summary=enc_txt,
                 instructions=(
@@ -617,7 +616,7 @@ with tab4:
         st.caption(
             f"現在のトレンドから **{horizon}年まで** を外挿。"
             f"業界全体の出願件数傾向: **{'+' if overall_s >= 0 else ''}{overall_s:.1f} 件/年**。"
-            "「不確実性」を必ず療んじた上で参考ください。"
+            "予測には不確実性があるため、参考情報として活用してください。"
         )
         if company_fc:
             fc_fig = build_forecast_fig(company_fc)
@@ -625,13 +624,11 @@ with tab4:
             fc_df = pd.DataFrame(company_fc)
             fc_df = fc_df[["company", "slope", "r2", "trend", "total", "forecast_year", "forecast_count"]]
             fc_df.columns = ["企業", "傾き(件/年)", "R²", "トレンド", "総件数",
-                             f"予測年", f"予測件数"]
+                             "予測年", "予測件数"]
             st.dataframe(fc_df.sort_values("傾き(件/年)", ascending=False),
                          use_container_width=True, hide_index=True)
-            growing = [f"{c['company']}(+{c['slope']:.1f})"
-                       for c in company_fc if c["slope"] > 0][:5]
-            shrinking = [f"{c['company']}({c['slope']:.1f})"
-                         for c in company_fc if c["slope"] < 0][:5]
+            growing = [f"{c['company']}(+{c['slope']:.1f})" for c in company_fc if c["slope"] > 0][:5]
+            shrinking = [f"{c['company']}({c['slope']:.1f})" for c in company_fc if c["slope"] < 0][:5]
             utils.render_snapshot_button(
                 title="STRATEGOS — 未来洞察",
                 description=f"企業別出願トレンド外挿（{horizon}年まで）",
@@ -651,16 +648,16 @@ with tab4:
                 instructions=(
                     f"{forecast_yrs}年後の業界地図を予測せよ。"
                     "どの企業が技術リーダーシップを維持または獲得するか？"
-                    "意外な上昇・犯張に注目し、戦略的投賄機会・リスク回避ポイントを提案せよ。"
+                    "意外な上昇・躍進に注目し、戦略的投資機会・リスク回避ポイントを提案せよ。"
                 ),
                 metadata=meta,
                 constraints=[
                     "内部ファイル名・フィールド名を本文に記載しないこと",
                     "予測には不確実性がある旨を明記すること",
                 ],
-                output_format=f"## 1. {forecast_yrs}年後のシナリオ\n## 2. 成長企業の展望\n## 3. 戦略的示唆 & 警午サイン",
+                output_format=f"## 1. {forecast_yrs}年後のシナリオ\n## 2. 成長企業の展望\n## 3. 戦略的示唆 & 警戒サイン",
             )
             utils_ai.render_ai_insight_button(prompt, key="strategos_fut_ai")
 
 st.divider()
-st.caption("🔬 STRATEGOS — APOLLO v8.0.0 | 戦略インテリジェンス & 未来洞察Engine")
+st.caption("🔬 STRATEGOS — APOLLO v8.0.0 | 戦略インテリジェンス & 未来洞察エンジン")
