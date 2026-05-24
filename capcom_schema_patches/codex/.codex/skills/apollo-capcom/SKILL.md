@@ -475,15 +475,17 @@ target = df[df['cluster'] == 3][['title', 'applicant_main', 'year']].head(20)  #
 
 **注意**: `report_style.typ` のフォント設定を変更しないこと。`#set text(font: ...)` を report.typ に直接書かないこと。画像パスは `reports/` からの相対パス。typst compile に `--root ".."` を付けること。旧API（`#setup-page()` / `#cover-page(...)` 等）は廃止済み。
 
-### python-pptx PPT
+### python-pptx PPT（プレゼン別冊）
+**スライド生成は専用スキル `apollo-pptx` を起動して行う**（`$apollo-pptx` または `/skills` → `apollo-pptx`）。実装仕様の正は `capcom_schema/templates/slides_spec.md`（v5.0、スライドタイプ15種）。以下は概要:
+
 1. `capcom_schema/templates/apollo_template.pptx` を `reports/` にコピーする
-2. `capcom_schema/templates/slides_spec.md` を**熟読**する（スライド仕様 v4.1）
+2. `capcom_schema/templates/slides_spec.md` を**熟読**する（スライド仕様 v5.0）
 3. `Presentation('reports/apollo_template.pptx')` + `slide_layouts[6]`（Blank）
-4. **フォント**: `Meiryo UI` 統一。`_apply_font()` で全runに設定
+4. **フォント**: `Meiryo UI` 統一。全runに `lang="ja-JP"` を設定
 5. **可視化ファースト**: チャート/図が主役。タイトル＝結論（新聞見出し方式）
-6. **スライドタイプ**: `add_chart_text_slide()` 40%以上、`add_dual_panel_slide()` 15-20%、テキスト主体15%以下
+6. **スライドタイプ**: チャート+注釈50%以上、デュアルパネル10-15%、テキスト主体10%以下
 7. **フォント階層**: 表紙36pt > セクション32pt > タイトル24pt > 本文16pt > 注釈14pt > テーブル13pt
-8. `fit_image()` 必須。`reports/presentation.pptx` に出力。推奨25-40枚
+8. 画像フィット必須。`reports/apollo_report_YYYYMMDD.pptx` に出力。推奨25-40枚
 9. **多様性ルール**: 同タイプ3枚連続禁止、空きスペースは分析視点で埋める
 
 ---

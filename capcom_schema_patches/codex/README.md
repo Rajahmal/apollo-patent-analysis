@@ -6,7 +6,8 @@
 
 ## 🎯 このパッチで追加される機能
 
-- **`apollo-capcom` Skill**: セッションフォルダでレポート生成を依頼すると自動起動
+- **`apollo-capcom` Skill**: セッションフォルダでレポート生成を依頼すると自動起動（Typst/PDF 本編レポート）
+- **`apollo-pptx` Skill**: 「スライドを作って」「PPTを生成して」でコンサル品質の PowerPoint プレゼン別冊を生成
 - **`ask_user_question` ベースのゲート**: Phase A-2 / B / C / D の各ユーザー確認
 - **共通 bash ゲート利用**: `capcom_schema/scripts/phase_c_gate.sh` と `phase_d_gate.sh` で品質を客観判定
 - **`AGENTS.md`**: Codex の階層ルールに則ったプロジェクトルール配置
@@ -38,10 +39,15 @@ Codex のチャットで：
 $apollo-capcom レポートを書いてください
 ```
 
+スライド（PowerPoint）が必要な場合：
+```
+$apollo-pptx スライドを作ってください
+```
+
 または：
 ```
 /skills
-# → apollo-capcom を選択
+# → apollo-capcom もしくは apollo-pptx を選択
 ```
 
 ---
@@ -67,6 +73,8 @@ $apollo-capcom レポートを書いてください
 ```
 session_YYYYMMDD_HHMMSS/
 ├── .codex/
+│   ├── skills/apollo-pptx/
+│   │   └── SKILL.md                    # スライド生成スキル（Codex版）
 │   └── skills/apollo-capcom/
 │       ├── SKILL.md                    # Codex版スキル本体（約460行）
 │       └── prompts/
