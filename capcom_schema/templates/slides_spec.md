@@ -96,23 +96,27 @@ add_sub_message(slide, "...", y=0.90)
 
 ### 設計原則
 
-#### 原則1: Fill the slide — 余白禁止
-コンテンツ領域はタイトル下端からフッター上端まで全面使用する。
-`adjustAreaForSubhead()` パターン: サブヘッドがある場合はコンテンツ領域を下にシフトし、
-残り領域を全てコンテンツで埋める。空きスペースは許可しない。
+#### 原則1: 埋める、ただし呼吸させる（余白と整列）
+コンテンツは縦方向にタイトル下端からページ下端近くまで使い切る（空きの帯を作らない）。
+**ただし要素を詰め込まない**。エディトリアル品質の鍵は意図的な余白と整列にある:
+- **左マージンを固定**: `MARGIN_L = 0.9`（インチ）。全スライドのタイトル・サブメッセージ・
+  コンテンツはこの左端に揃える（1本の縦グリッドに整列＝視線が落ち着く）。
+- コンテンツ幅は `CONTENT_W = 13.33 - MARGIN_L - 0.7`（右にも0.7inの余白を残す）。
+- 要素間のギャップは詰めすぎない（カード間0.25-0.3in、注釈項目間は段落 space_after 8-10pt）。
+- 「埋める」より「整列させて呼吸させる」。迷ったら要素を足さず、余白を残す。
 
 #### 原則2: 動的カードサイジング
-- KPIカード: 4個以下 = 1行、5-8個 = 2行。幅 = (利用可能幅 - ギャップ合計) / 列数
+- KPIカード: 4個以下 = 1行、5-8個 = 2行。幅 = (CONTENT_W - ギャップ合計) / 列数
 - プロセスステップ: 2個以下 = 大ボックス、3個 = 中、4個以上 = コンパクト。フォントも連動縮小
 - テーブル行: 行高 = (利用可能高さ) / 行数（最小0.35、最大0.55）
 
 #### 原則3: 全スライド共通構造
-タイトル・セクション・クロージング以外の全スライドに以下を適用:
-1. タイトル（29-30pt Bold INK）+ タイトル左に短いクリムゾンの EYEBROW 罫（28px相当）
-2. サブヘッド（15pt、■メッセージボックス＝淡グレー面＋左ACCENTバー。省略可）
-3. コンテンツ領域（残り全スペースを使い切る）
-4. **フッター帯は廃止**。ボトムバーも置かない（紙面はミニマルに保つ）
-5. **ページ番号のみ**を右下に小さく配置（10pt MEDIUM_GRAY、右寄せ）。"APOLLO" ワードマークは入れない
+タイトル・セクション・クロージング以外の全スライドに以下を適用（全て左端 `MARGIN_L` に整列）:
+1. ラベル（EYEBROW、9-10pt Heavy・ACCENT・任意）+ タイトル左肩に短いクリムゾン罫（0.40in）
+2. タイトル（28-30pt Bold INK・字間詰め）
+3. サブヘッド（14pt、■メッセージボックス＝淡グレー面＋左ACCENTバー。省略可）
+4. コンテンツ領域（残りを使い切る。ただし原則1の余白を守る）
+5. **フッター帯・ボトムバーは廃止**。ページ番号のみ右下に小さく（10pt MEDIUM_GRAY、右寄せ）
 
 #### 原則4: タイトル＝結論（新聞見出し方式）
 タイトルは結論そのもの。単なるラベルではない。
@@ -124,6 +128,8 @@ add_sub_message(slide, "...", y=0.90)
 | 「競合分析」 | 「**A社がシェア首位も、B社がSiC領域で急追 ～3年以内に逆転の可能性**」 |
 
 タイトルに `～` で副題を付け、1行でストーリーを完結させる。数値を必ず含める。
+タイトル上に**小さな赤ラベル（EYEBROW）**でモジュール名や分類を添えると階層が締まる
+（例: `ATLAS / 出願トレンド`、`EXECUTIVE SUMMARY`）。
 
 #### 原則5: 可視化ファースト
 | 形式 | 使用割合 | 用途 |
@@ -132,6 +138,23 @@ add_sub_message(slide, "...", y=0.90)
 | **ポンチ絵付き** | **20%以上** | カード/プロセス/ピラミッド/比較等 |
 | **テーブル+注釈** | 10-15% | 数値比較テーブル + テキスト補足 |
 | ナラティブ（テキスト主体） | **10%以下** | エグゼクティブサマリー + 結論のみ |
+
+#### 原則6: 赤は「9:1」で使う（最重要のセンス・ルール）
+クリムゾン（ACCENT）は**画面の1割未満**に抑える。多用すると安っぽくなる。
+- **1スライドにつき赤は1〜2点まで**（結論の数値・1本の罫・注目1要素のいずれか）。
+- 残りは墨（INK）とグレー階調で構成する。青/緑/橙は使わない。
+- テーブルやチャートでも「最も言いたい1点」だけを赤にし、他はグレーにする
+  （例: 競合表でB社のSiC行だけ赤、トレンド棒でピーク年だけ赤）。
+
+#### 原則7: タイポgrafィは3階層に絞る
+サイズを乱立させない。読み手が階層を即座に把握できるよう **3階層**に統一する:
+1. **見出し**（タイトル 28-30pt Bold INK）
+2. **小見出し / ラベル**（サブメッセージ14pt・EYEBROWラベル9-10pt）
+3. **本文 / 注釈**（12-14pt）
+
+階層差は**サイズより太さ・字間・色**でつける（ラベル＝小・字間広・赤、本文＝墨）。
+中途半端な中間サイズを足さない。
+
 
 ### フォント
 
@@ -206,9 +229,13 @@ BAR_HOT = RGBColor(0xC5, 0x12, 0x12)    # 注目（赤）
 BAR_NOW = RGBColor(0x83, 0x10, 0x10)    # 直近（濃赤）
 GRID_LINE = RGBColor(0xE6, 0xE8, 0xEA)  # 目盛線（点線 3 4 推奨）
 
+# レイアウト・グリッド定数（原則1: 余白と整列）
+MARGIN_L = 0.9                       # Inches — 全要素を揃える固定左マージン
+CONTENT_W = 13.33 - MARGIN_L - 0.7   # Inches — コンテンツ幅（右に0.7inの余白を残す）
+
 # ボトム定数（フッター帯は廃止。右下ページ番号のみ）
 PAGE_NUM_Y = 7.05      # Inches — 右下ページ番号のベースライン
-PAGE_NUM_X = 11.7      # Inches — 右下ページ番号の左端（右寄せ）
+PAGE_NUM_X = 12.3      # Inches — 右下ページ番号の左端（右寄せ・MARGIN_Lと対称）
 # トップバー（明スライド上端の黒帯＋赤下線）
 TOPBAR_H = 0.45        # Inches ≒ 44px 相当
 TOPBAR_RED_H = 0.04    # Inches ≒ 3px 相当（黒帯下端のクリムゾン線）
@@ -248,6 +275,38 @@ TEMPLATE = os.path.join(os.path.dirname(__file__), "../../capcom_schema/template
 prs = Presentation(TEMPLATE)
 blank = prs.slide_layouts[6]  # ブランクレイアウト
 SNAP = os.path.join(os.path.dirname(__file__), "../snapshots")
+```
+
+### チャートのスタイル（自前生成する場合・データインク重視）
+
+APOLLOの `snapshots/` 画像があればそれを優先掲載する。**画像が無く自前でチャートを描く**
+場合は、原則6（赤9:1）に従い以下のスタイルで統一する:
+- 枠線・目盛は削る（上/右/左の spine を消し、下のみ薄グレー）。目盛線は点線・薄グレー。
+- 棒/点は**グレー段階**で描き、「最も言いたい1点」だけ ACCENT（赤）にする。
+- 凡例は極力使わず、注目点に直接注釈（赤）を添える。背景は透過。
+
+```python
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+plt.rcParams["font.family"] = "IPAGothic"   # 環境の日本語フォントに合わせる
+plt.rcParams["axes.unicode_minus"] = False
+
+# パレット（Section 1 と対応）: 古=#c7cbd0 中=#8f8f8f 注目=#c51212 直近=#831010
+GRID = "#e6e8ea"; BASE = "#dddddd"; MUTED = "#777777"
+
+def style_axes(ax):
+    ax.set_axisbelow(True)
+    ax.yaxis.grid(True, color=GRID, linestyle=(0, (3, 4)), linewidth=0.8)
+    for s in ("top", "right", "left"):
+        ax.spines[s].set_visible(False)
+    ax.spines["bottom"].set_color(BASE)
+    ax.tick_params(colors=MUTED, labelsize=9, length=0)
+
+# 例: トレンド棒（ピーク年だけ赤、他はグレー）
+# colors = ["#c7cbd0"]*5 + ["#8f8f8f"]*2 + ["#c51212", "#831010", "#8f8f8f"]
+# ax.bar(years, vals, color=colors, width=0.68); style_axes(ax)
+# fig.savefig(path, transparent=True)
 ```
 
 ---
@@ -323,11 +382,13 @@ def set_text(p, text, size, color, bold=False, line_spacing=None):
 ### スライドタイトル（結論型 + 下線）
 
 ```python
-def add_title_shape(slide, text, x=0.5, y=0.15, w=12.3):
-    """スライドタイトル（29-30pt Bold INK + 左肩の短いクリムゾン EYEBROW 罫）
+def add_title_shape(slide, text, x=MARGIN_L, y=0.55, w=CONTENT_W, label=None):
+    """スライドタイトル（28-30pt Bold INK + 左肩クリムゾン罫 + 任意の赤ラベル）
 
     タイトル＝結論。「～」で副題を付け、1行でストーリーを完結。
-    全幅下線は廃止。代わりにタイトル左肩に短い赤罫（28px相当≒0.40in）を置く。
+    全幅下線は廃止。タイトル左肩に短い赤罫（≒0.40in）を置く。
+    label を渡すと、罫の下・タイトルの上に小さな赤ラベル（EYEBROW）を添える
+    （例: "ATLAS / 出願トレンド"、"EXECUTIVE SUMMARY"）。原則3・原則7。
     Returns:
         float: タイトル下端のy座標（サブメッセージの配置基準）
     """
@@ -336,13 +397,13 @@ def add_title_shape(slide, text, x=0.5, y=0.15, w=12.3):
         font_size = Pt(30)
         box_h = 0.70
     elif text_len <= 50:
-        font_size = Pt(26)
+        font_size = Pt(28)
         box_h = 0.80
     else:
-        font_size = Pt(22)
+        font_size = Pt(24)
         box_h = 0.95
 
-    # 左肩の短いクリムゾン EYEBROW 罫（28px ≒ 0.40in 幅・1px厚）
+    # 左肩の短いクリムゾン EYEBROW 罫（≒0.40in 幅・1px厚）
     eb_y = y + 0.02
     eyebrow = slide.shapes.add_shape(
         MSO_SHAPE.RECTANGLE, Inches(x), Inches(eb_y), Inches(0.40), Emu(12700)
@@ -351,18 +412,24 @@ def add_title_shape(slide, text, x=0.5, y=0.15, w=12.3):
     eyebrow.fill.fore_color.rgb = ACCENT
     eyebrow.line.fill.background()
 
-    # タイトル本文（EYEBROW の下に少し送る）
-    title_y = eb_y + 0.10
-    txBox = slide.shapes.add_textbox(Inches(x), Inches(title_y), Inches(w), Inches(box_h))
+    cy = eb_y + 0.12
+    # 任意の赤ラベル（モジュール名・分類）。字間を開け全大文字推奨
+    if label:
+        lab = slide.shapes.add_textbox(Inches(x), Inches(cy), Inches(w), Inches(0.28))
+        set_text(lab.text_frame.paragraphs[0], label, Pt(10), ACCENT, bold=True)
+        cy += 0.30
+
+    # タイトル本文（墨・字間詰め）
+    txBox = slide.shapes.add_textbox(Inches(x), Inches(cy), Inches(w), Inches(box_h))
     tf = txBox.text_frame
     tf.word_wrap = True
     tf.auto_size = MSO_AUTO_SIZE.NONE
     p = tf.paragraphs[0]
-    # タイトルは墨。`～` 以降の副題のみクリムゾンで締める運用も可（任意）
+    # タイトルは墨。`～` 以降の副題のみクリムゾンで締める運用も可（任意・原則6の範囲で）
     add_rich_runs(p, text, base_size=font_size, base_color=INK,
-                  bold_color=INK, force_bold=True, line_spacing=1.22)
+                  bold_color=INK, force_bold=True, line_spacing=1.18)
 
-    return title_y + box_h + 0.06  # サブメッセージの開始y座標を返す
+    return cy + box_h + 0.06  # サブメッセージの開始y座標を返す
 ```
 
 ### ■サブメッセージ
