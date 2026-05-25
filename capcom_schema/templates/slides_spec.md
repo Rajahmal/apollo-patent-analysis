@@ -1,8 +1,9 @@
-# PPTスライド仕様書 v5.0 — コンサルティングレポート品質 + ポンチ絵完全対応
+# PPTスライド仕様書 v6.0 — エディトリアル品質（モノトーン＋クリムゾン）+ ポンチ絵完全対応
 
 python-pptx + Pillow で産業調査レポート品質のスライドを生成する仕様書。
 **チャート/図が主役、テキストは注釈。タイトル＝結論。■サブメッセージはボックス囲み。**
-**Meiryo UI フォント統一。全runに lang="ja-JP" 明示。全スライドにボトムバー + フッター。**
+**欧文=Century Gothic / 和文=Yu Gothic。全runに lang="ja-JP" 明示。配色はモノトーン＋クリムゾン単一アクセント。**
+**フッター帯は廃止。ページ番号は右下のみ。表紙/章扉/クロージングは黒背景。**
 **テキストのみスライド ≤ 10%。ポンチ絵パターン15種で全スライドに視覚要素を保証。**
 
 **必要パッケージ:** `pip install python-pptx Pillow`
@@ -74,16 +75,16 @@ add_sub_message(slide, "...", y=0.90)
 - セッションデータ（`data/*.json`、`patents.csv`）は **必要範囲のみ抽出** する。全件 dump は禁止
 
 ### 0.7 品質チェックリスト（出力前に全項目確認）
-- [ ] フッターは `"APOLLO"`（`"APOLLO CAPCOM"` は不可、`add_bottom_bar_and_footer()` 使用）
+- [ ] ページ番号は**右下のみ**（フッター帯・ボトムバー・"APOLLO" ワードマーク・区切り線は置かない。`add_bottom_bar_and_footer()` 使用）
 - [ ] 全スライドのタイトルが**結論型**（ラベル型禁止、数値を1つ以上含む、`～` で副題）
 - [ ] **チャート + 注釈スライドが全体の50%以上**（Section 1 原則5）
 - [ ] **テキストのみスライドが全体の10%以下**（エグゼクティブサマリー + 結論のみに限定）
 - [ ] 全分析スライドに**視覚要素**（チャート/画像/ポンチ絵）が含まれる
-- [ ] 全 run に **Meiryo UI** + `lang="ja-JP"` 設定（`_apply_font()` 経由）
+- [ ] 全 run に **欧文=Century Gothic / 和文=Yu Gothic** + `lang="ja-JP"` 設定（`_apply_font()` 経由）
 - [ ] **■サブメッセージは 2 行以内**（80 文字以内）
 - [ ] 注釈テキストは **3〜5 項目の箇条書き**（長文ブロック禁止、各項目 1〜2 行）
 - [ ] タイトルとサブメッセージが**重なっていない**（戻り値連鎖を使用）
-- [ ] カラーパレット遵守（NAVY / ACCENT / DARK_GRAY ほか Section 1 のみ使用）
+- [ ] カラーパレット遵守（モノトーン＋ ACCENT クリムゾン単一アクセント。青/緑/橙は使わず Section 1 のみ使用）
 - [ ] 表紙に **Mission Objective** 記載
 - [ ] エグゼクティブサマリーに **KPI 3〜4 個**（`add_kpi_slide()`）
 - [ ] 戦略提言は**矢印プロセスフロー or ステップアップ**（`add_process_slide()` / `add_stepup_slide()`）でポンチ絵化
@@ -107,11 +108,11 @@ add_sub_message(slide, "...", y=0.90)
 
 #### 原則3: 全スライド共通構造
 タイトル・セクション・クロージング以外の全スライドに以下を適用:
-1. タイトル（24pt Bold Navy）+ 全幅下線（ACCENT色）
-2. サブヘッド（16pt、■メッセージボックス。省略可）
+1. タイトル（29-30pt Bold INK）+ タイトル左に短いクリムゾンの EYEBROW 罫（28px相当）
+2. サブヘッド（15pt、■メッセージボックス＝淡グレー面＋左ACCENTバー。省略可）
 3. コンテンツ領域（残り全スペースを使い切る）
-4. ボトムアクセントバー（4px、全幅、NAVY色）
-5. フッター（左: "APOLLO"、右: ページ番号）
+4. **フッター帯は廃止**。ボトムバーも置かない（紙面はミニマルに保つ）
+5. **ページ番号のみ**を右下に小さく配置（10pt MEDIUM_GRAY、右寄せ）。"APOLLO" ワードマークは入れない
 
 #### 原則4: タイトル＝結論（新聞見出し方式）
 タイトルは結論そのもの。単なるラベルではない。
@@ -134,44 +135,93 @@ add_sub_message(slide, "...", y=0.90)
 
 ### フォント
 
-全スライドで **Meiryo UI** を統一使用する（日本語・欧文とも）。
+欧文・見出しは **Century Gothic**、和文は **Yu Gothic** を基本とする（幾何学サンセリフ＋現代的ゴシックの組合せ）。
+インストール環境に依存するため、フォールバック順を以下とする:
 
-| 要素 | サイズ | 行間 | 用途 |
-|------|-------|------|------|
-| 表紙タイトル | **36pt Bold** White | 1.2x | 表紙 |
-| スライドタイトル | **24pt Bold** Navy | 1.3x | 結論型見出し |
-| セクションタイトル | **32pt Bold** White | 1.2x | セクション区切り |
-| ゴースト番号 | **180pt Bold** | — | セクション番号（半透明） |
-| ■サブメッセージ | **16pt** Dark Gray | 1.5x | タイトル直下の要点 |
-| チャート小見出し | **14pt Bold** Navy | 1.2x | グラフ上の分類ラベル |
-| 本文テキスト | **16pt** Dark Gray | 1.5x | ナラティブ本文、箇条書き |
-| 注釈テキスト | **14pt** Dark Gray | 1.4x | チャート横の分析注釈 |
-| テーブル | **13pt/12pt** | 1.2x | ヘッダー/データ |
-| Callout注釈 | **12pt** Navy | 1.3x | チャート上のオーバーレイ |
-| キャプション | **10pt** Medium Gray | 1.2x | 画像説明 |
-| 出典 | **9pt** Medium Gray | 1.0x | （注）（出所） |
-| フッター | **8pt** Medium Gray | 1.0x | ページ番号 |
+```
+欧文/見出し: Century Gothic → Futura → Trebuchet MS → sans-serif
+和文:        Yu Gothic → Hiragino Sans → Noto Sans JP → Meiryo
+```
+
+見出しは字間を詰める（letter-spacing 負、-0.04em 相当）。ラベルは大きく開く（+0.20〜0.26em 相当・全大文字）。
+本文は行間広め（1.65 相当）。色は INK（墨）を基調、アクセントは ACCENT（クリムゾン）のみ。
+
+| 要素 | サイズ | 行間 | 字間 | 色 |
+|------|-------|------|------|----|
+| 表紙タイトル | **34pt Bold** | 1.22x | 詰め | White（黒地） |
+| スライドタイトル | **29-30pt Bold** | 1.22x | 詰め(-0.04em) | INK、`～`副題はACCENT可 |
+| セクションタイトル | **30pt Bold** | 1.25x | 詰め(-0.035em) | White（黒地） |
+| ゴースト番号 | **180pt Bold** | — | — | GHOST_ON_DARK（黒地上） |
+| ラベル(EYEBROW) | **9-10pt** Heavy | 1.2x | 大きく開く(+0.22em)・全大文字 | ACCENT |
+| ■サブメッセージ | **15pt** | 1.5x | 標準 | INK（淡グレー面） |
+| チャート小見出し | **14pt Bold** | 1.2x | 標準 | INK |
+| 本文テキスト | **14-16pt** | 1.65x | 標準(+0.01em) | DARK_GRAY |
+| 注釈テキスト | **13-14pt** | 1.5x | 標準 | DARK_GRAY |
+| テーブル | **13pt/12pt** | 1.2x | 標準 | INK / 数値はTabular |
+| Callout注釈 | **12pt** | 1.3x | 標準 | INK |
+| キャプション | **10pt** | 1.2x | 標準 | MEDIUM_GRAY |
+| 出典 | **9pt** | 1.0x | 標準 | MEDIUM_GRAY |
+| ページ番号 | **10pt** | 1.0x | 標準 | MEDIUM_GRAY（右下のみ） |
 
 ### カラーパレット
 
-```python
-NAVY = RGBColor(0x1B, 0x2A, 0x4A)       # タイトル、強調テキスト、セクション背景
-BLUE = RGBColor(0x2E, 0x50, 0x90)       # セクションヘッダー背景
-ACCENT = RGBColor(0x3B, 0x7D, 0xD8)     # アクセントバー、強調要素
-DARK_GRAY = RGBColor(0x33, 0x33, 0x33)  # 本文テキスト
-MEDIUM_GRAY = RGBColor(0x66, 0x66, 0x66) # 補足テキスト、キャプション
-LIGHT_GRAY = RGBColor(0xF2, 0xF2, 0xF2) # テーブルゼブラストライプ、枠背景
-BORDER_GRAY = RGBColor(0xCC, 0xCC, 0xCC) # テーブル罫線、区切り線
-KEY_MSG_BG = RGBColor(0xE8, 0xF0, 0xFE) # 強調ボックス背景
-WHITE = RGBColor(0xFF, 0xFF, 0xFF)
-RED_ACCENT = RGBColor(0xD6, 0x45, 0x45)  # 警告、マイナス指標
-GREEN_ACCENT = RGBColor(0x2E, 0x8B, 0x57) # ポジティブ指標
-AMBER = RGBColor(0xD4, 0xA0, 0x17)       # 注意指標
-GHOST_NAVY = RGBColor(0x2A, 0x3A, 0x5A) # セクションゴースト番号（NAVYより少し明るい）
+エディトリアル・モノトーン基調 ＋ クリムゾン単一アクセント。
+白・墨・グレー中心、低彩度・高コントラスト。彩度の高い色（青/緑/橙）は使わない。
 
-# ボトムバー定数
-BOTTOM_BAR_HEIGHT = 4  # px（ポイント換算: Emu(50800)）
-BOTTOM_BAR_Y = 6.92    # Inches — フッター線の直上
+```python
+# --- ベース（墨と紙） ---
+INK = RGBColor(0x11, 0x11, 0x11)        # 主要テキスト（旧NAVYの役割）
+PAPER = RGBColor(0xFF, 0xFF, 0xFF)      # 紙（明スライド背景）
+WHITE = RGBColor(0xFF, 0xFF, 0xFF)
+DARK_SECTION = RGBColor(0x10, 0x10, 0x11) # 章扉・ダークセクション背景（黒）
+BLACK_BAR = RGBColor(0x0B, 0x0B, 0x0C)  # トップバー等の黒帯
+
+# --- グレー階調 ---
+DARK_GRAY = RGBColor(0x11, 0x11, 0x11)  # 本文テキスト（≒INK）
+MEDIUM_GRAY = RGBColor(0x68, 0x68, 0x68) # 補足・キャプション・ページ番号
+LIGHT_GRAY = RGBColor(0xF1, 0xF2, 0xF3) # カード/ゼブラ既定面
+PALE_GRAY = RGBColor(0xF6, 0xF7, 0xF8)  # グレーセクション面
+SURFACE_GRAY = RGBColor(0xEC, 0xEE, 0xEF) # やや濃い面
+BORDER_GRAY = RGBColor(0xD8, 0xDA, 0xDD) # 罫線・区切り線
+
+# --- クリムゾン・アクセント（単一アクセント） ---
+ACCENT = RGBColor(0xC5, 0x12, 0x12)     # アクセントバー・ラベル・強調（=RED）
+RED = RGBColor(0xC5, 0x12, 0x12)
+BRIGHT_RED = RGBColor(0xE3, 0x33, 0x33) # ハイライト/ホバー相当の明るい赤
+DEEP_RED = RGBColor(0x83, 0x10, 0x10)   # チャート最濃バー（"now"）
+RED_ON_DARK = RGBColor(0xFF, 0x70, 0x70) # 黒背景上のバッジ文字
+
+# --- 指標色（低彩度の範囲で。緑/橙は使わずグレー+赤で表現） ---
+RED_ACCENT = RGBColor(0xC5, 0x12, 0x12)  # マイナス/警告/ネガティブ
+POS_INK = RGBColor(0x11, 0x11, 0x11)     # ポジティブは墨で強調（彩色しない）
+KEY_MSG_BG = RGBColor(0xF6, 0xF7, 0xF8)  # ■サブメッセージ背景（淡グレー面）
+
+# --- 章扉ゴースト番号（黒背景上）---
+GHOST_ON_DARK = RGBColor(0x1C, 0x1C, 0x1E) # 黒よりわずかに明るい墨（巨大番号の地）
+
+# --- チャート配色（グレー段階 + 赤で「今/注目」を示す） ---
+BAR_OLD = RGBColor(0xC7, 0xCB, 0xD0)    # 過去
+BAR_MID = RGBColor(0x8F, 0x8F, 0x8F)    # 中間
+BAR_HOT = RGBColor(0xC5, 0x12, 0x12)    # 注目（赤）
+BAR_NOW = RGBColor(0x83, 0x10, 0x10)    # 直近（濃赤）
+GRID_LINE = RGBColor(0xE6, 0xE8, 0xEA)  # 目盛線（点線 3 4 推奨）
+
+# ボトム定数（フッター帯は廃止。右下ページ番号のみ）
+PAGE_NUM_Y = 7.05      # Inches — 右下ページ番号のベースライン
+PAGE_NUM_X = 11.7      # Inches — 右下ページ番号の左端（右寄せ）
+# トップバー（明スライド上端の黒帯＋赤下線）
+TOPBAR_H = 0.45        # Inches ≒ 44px 相当
+TOPBAR_RED_H = 0.04    # Inches ≒ 3px 相当（黒帯下端のクリムゾン線）
+
+# --- 旧名エイリアス（後方互換）---
+# 既存15種スライドは旧名(NAVY/BLUE/...)を参照する。配色をモノトーン＋クリムゾン単一
+# アクセントへ一括移行するため、旧名を新パレットへ写像する。青/緑/橙は使わず、
+# カテゴリ区別はグレー段階＋赤で表現する（設計トーン: 低彩度・高コントラスト）。
+NAVY = INK                              # タイトル/強調 → 墨
+BLUE = MEDIUM_GRAY                      # 旧・第2系列色 → 中間グレー
+GHOST_NAVY = GHOST_ON_DARK              # 章扉ゴースト番号
+GREEN_ACCENT = INK                      # 旧・ポジティブ → 墨で強調（彩色しない）
+AMBER = BAR_MID                         # 旧・注意 → 中間グレー
 ```
 
 ### テンプレートとセットアップ
@@ -186,9 +236,10 @@ from PIL import Image
 from lxml import etree
 import os, re, sys
 
-# --- フォント設定 ---
-JA_FONT = "Meiryo UI"
-LATIN_FONT = "Meiryo UI"
+# --- フォント設定（欧文=Century Gothic / 和文=Yu Gothic） ---
+# 環境にCentury Gothicが無い場合に備え、利用側でフォールバックを考慮すること
+JA_FONT = "Yu Gothic"
+LATIN_FONT = "Century Gothic"
 
 A_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main'
 
@@ -273,42 +324,45 @@ def set_text(p, text, size, color, bold=False, line_spacing=None):
 
 ```python
 def add_title_shape(slide, text, x=0.5, y=0.15, w=12.3):
-    """スライドタイトル（24pt Bold Navy + 全幅下線）
+    """スライドタイトル（29-30pt Bold INK + 左肩の短いクリムゾン EYEBROW 罫）
 
     タイトル＝結論。「～」で副題を付け、1行でストーリーを完結。
-    テキスト長に応じてフォントサイズと高さを動的調整。
+    全幅下線は廃止。代わりにタイトル左肩に短い赤罫（28px相当≒0.40in）を置く。
     Returns:
         float: タイトル下端のy座標（サブメッセージの配置基準）
     """
     text_len = len(text)
     if text_len <= 30:
-        font_size = Pt(24)
-        box_h = 0.65
+        font_size = Pt(30)
+        box_h = 0.70
     elif text_len <= 50:
-        font_size = Pt(22)
-        box_h = 0.75
+        font_size = Pt(26)
+        box_h = 0.80
     else:
-        font_size = Pt(20)
-        box_h = 0.90
+        font_size = Pt(22)
+        box_h = 0.95
 
-    txBox = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(box_h))
+    # 左肩の短いクリムゾン EYEBROW 罫（28px ≒ 0.40in 幅・1px厚）
+    eb_y = y + 0.02
+    eyebrow = slide.shapes.add_shape(
+        MSO_SHAPE.RECTANGLE, Inches(x), Inches(eb_y), Inches(0.40), Emu(12700)
+    )
+    eyebrow.fill.solid()
+    eyebrow.fill.fore_color.rgb = ACCENT
+    eyebrow.line.fill.background()
+
+    # タイトル本文（EYEBROW の下に少し送る）
+    title_y = eb_y + 0.10
+    txBox = slide.shapes.add_textbox(Inches(x), Inches(title_y), Inches(w), Inches(box_h))
     tf = txBox.text_frame
     tf.word_wrap = True
     tf.auto_size = MSO_AUTO_SIZE.NONE
     p = tf.paragraphs[0]
-    add_rich_runs(p, text, base_size=font_size, base_color=NAVY,
-                  bold_color=NAVY, force_bold=True, line_spacing=1.3)
+    # タイトルは墨。`～` 以降の副題のみクリムゾンで締める運用も可（任意）
+    add_rich_runs(p, text, base_size=font_size, base_color=INK,
+                  bold_color=INK, force_bold=True, line_spacing=1.22)
 
-    # 全幅下線 — ACCENT色の薄いバー
-    line_y = y + box_h + 0.05
-    line = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(x), Inches(line_y), Inches(w), Emu(12700)
-    )
-    line.fill.solid()
-    line.fill.fore_color.rgb = ACCENT
-    line.line.fill.background()
-
-    return line_y + 0.08  # サブメッセージの開始y座標を返す
+    return title_y + box_h + 0.06  # サブメッセージの開始y座標を返す
 ```
 
 ### ■サブメッセージ
@@ -355,8 +409,8 @@ def add_sub_message(slide, message, x=0.5, y=None, w=12.3):
     p = tf.paragraphs[0]
     marker = p.add_run()
     marker.text = "■ "
-    marker.font.size = Pt(16)
-    marker.font.color.rgb = NAVY
+    marker.font.size = Pt(15)
+    marker.font.color.rgb = ACCENT  # クリムゾンのマーカー
     marker.font.bold = True
     _apply_font(marker)
     parts = re.split(r'(\*\*.*?\*\*)', message)
@@ -367,11 +421,11 @@ def add_sub_message(slide, message, x=0.5, y=None, w=12.3):
         if part.startswith('**') and part.endswith('**'):
             run.text = part[2:-2]
             run.font.bold = True
-            run.font.color.rgb = NAVY
+            run.font.color.rgb = INK  # 強調は墨（彩色しない）
         else:
             run.text = part
             run.font.color.rgb = DARK_GRAY
-        run.font.size = Pt(16)
+        run.font.size = Pt(15)
         _apply_font(run)
     _apply_kinsoku(p)
     p.line_spacing = 1.5
@@ -379,43 +433,26 @@ def add_sub_message(slide, message, x=0.5, y=None, w=12.3):
     return y + box_h + 0.10
 ```
 
-### ボトムバー + フッター（全スライド必須）
+### ページ番号（全スライド必須・右下のみ）
+
+> **方針変更**: フッター帯・ボトムバー・"APOLLO" ワードマーク・区切り線は**すべて廃止**。
+> 紙面はミニマルに保ち、**右下のページ番号のみ**を置く。関数名は後方互換のため据え置く
+> （15種スライドが `add_bottom_bar_and_footer(slide, page_num)` を呼ぶ）。
 
 ```python
 def add_bottom_bar_and_footer(slide, page_num=None):
-    """全スライド共通: ボトムアクセントバー + フッター
-
-    ボトムバー: NAVY色、全幅、高さ4px
-    フッター: 左に "APOLLO"、右にページ番号
+    """全スライド共通: 右下のページ番号のみを描画する（帯・フッター・ワードマークは置かない）。
     タイトルスライド・セクションスライド・クロージングスライドでは呼ばない。
     """
-    # ボトムアクセントバー（全幅、NAVY）
-    bar = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(0), Inches(BOTTOM_BAR_Y),
-        Inches(13.33), Emu(50800)
+    if page_num is None:
+        return
+    # 右下ページ番号のみ（10pt MEDIUM_GRAY・右寄せ）
+    txBox = slide.shapes.add_textbox(
+        Inches(PAGE_NUM_X), Inches(PAGE_NUM_Y), Inches(1.4), Inches(0.25)
     )
-    bar.fill.solid()
-    bar.fill.fore_color.rgb = NAVY
-    bar.line.fill.background()
-
-    # フッター区切り線
-    line = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(0.5), Inches(6.95), Inches(12.3), Emu(9525)
-    )
-    line.fill.solid()
-    line.fill.fore_color.rgb = BORDER_GRAY
-    line.line.fill.background()
-
-    # 左: "APOLLO"
-    txBox = slide.shapes.add_textbox(Inches(0.5), Inches(7.05), Inches(6.0), Inches(0.25))
-    set_text(txBox.text_frame.paragraphs[0], "APOLLO", Pt(8), MEDIUM_GRAY)
-
-    # 右: ページ番号
-    if page_num is not None:
-        txBox2 = slide.shapes.add_textbox(Inches(10.5), Inches(7.05), Inches(2.3), Inches(0.25))
-        p2 = txBox2.text_frame.paragraphs[0]
-        set_text(p2, f"| {page_num}", Pt(8), MEDIUM_GRAY)
-        p2.alignment = PP_ALIGN.RIGHT
+    p = txBox.text_frame.paragraphs[0]
+    set_text(p, str(page_num), Pt(10), MEDIUM_GRAY)
+    p.alignment = PP_ALIGN.RIGHT
 ```
 
 ### 画像・データソース・注釈
@@ -578,46 +615,46 @@ def add_highlight_circle(slide, x, y, w=0.5, h=0.5, color=None):
 
 ### 3.1 タイトルスライド（表紙）
 
-Navy背景に白テキスト。APOLLOブランディング。
+黒背景（DARK_SECTION）に白テキスト。クリムゾン単一アクセント。
 
 ```python
 def add_title_slide(prs, title, subtitle, date, blank):
-    """表紙 — Navy背景 + アクセントライン + APOLLOロゴ"""
+    """表紙 — 黒背景 + クリムゾンの短い罫 + APOLLOロゴ"""
     slide = prs.slides.add_slide(blank)
-    # Navy背景（スライド全面）
+    # 黒背景（スライド全面）
     bg = slide.background.fill
     bg.solid()
-    bg.fore_color.rgb = NAVY
+    bg.fore_color.rgb = DARK_SECTION
 
-    # アクセントライン（左上）
+    # アクセントライン（左上・クリムゾン）
     line = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(1.2), Inches(1.8), Inches(2.0), Emu(27432)
+        MSO_SHAPE.RECTANGLE, Inches(1.2), Inches(1.8), Inches(2.0), Emu(38100)
     )
     line.fill.solid()
     line.fill.fore_color.rgb = ACCENT
     line.line.fill.background()
 
-    # "APOLLO" ロゴテキスト（左上に小さく）
-    logo = slide.shapes.add_textbox(Inches(1.2), Inches(1.2), Inches(3), Inches(0.5))
-    set_text(logo.text_frame.paragraphs[0], "APOLLO", Pt(14), ACCENT, bold=True)
+    # "APOLLO" ロゴテキスト（左上に小さく・大きく字間を開ける運用）
+    logo = slide.shapes.add_textbox(Inches(1.2), Inches(1.2), Inches(4), Inches(0.5))
+    set_text(logo.text_frame.paragraphs[0], "A P O L L O", Pt(14), ACCENT, bold=True)
 
-    # タイトル（36pt White Bold）
+    # タイトル（34pt White Bold・字間詰め）
     txBox = slide.shapes.add_textbox(Inches(1.2), Inches(2.1), Inches(11), Inches(2))
     tf = txBox.text_frame
     tf.word_wrap = True
-    set_text(tf.paragraphs[0], title, Pt(36), WHITE, bold=True, line_spacing=1.2)
+    set_text(tf.paragraphs[0], title, Pt(34), WHITE, bold=True, line_spacing=1.22)
 
-    # サブタイトル
+    # サブタイトル（淡いグレー）
     txBox2 = slide.shapes.add_textbox(Inches(1.2), Inches(4.2), Inches(11), Inches(1))
-    set_text(txBox2.text_frame.paragraphs[0], subtitle, Pt(18), RGBColor(0xAA, 0xBB, 0xDD))
+    set_text(txBox2.text_frame.paragraphs[0], subtitle, Pt(16), RGBColor(0xB8, 0xB8, 0xBA))
 
-    # 日付
+    # 日付（より淡いグレー）
     txBox3 = slide.shapes.add_textbox(Inches(1.2), Inches(5.5), Inches(11), Inches(0.5))
-    set_text(txBox3.text_frame.paragraphs[0], date, Pt(13), RGBColor(0x88, 0x99, 0xBB))
+    set_text(txBox3.text_frame.paragraphs[0], date, Pt(13), MEDIUM_GRAY)
 
     # ボトムライン（ACCENT、全幅）
     bot = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(0), Inches(7.1), Inches(13.33), Emu(27432)
+        MSO_SHAPE.RECTANGLE, Inches(0), Inches(7.1), Inches(13.33), Emu(38100)
     )
     bot.fill.solid()
     bot.fill.fore_color.rgb = ACCENT
@@ -627,29 +664,29 @@ def add_title_slide(prs, title, subtitle, date, blank):
 
 ### 3.2 セクション区切り（ゴースト番号付き）
 
-Navy背景。大きな半透明セクション番号 + 白テキストタイトル。
+**黒背景**（DARK_SECTION）。巨大なゴースト番号（黒よりわずかに明るい墨）+ 白テキストタイトル。
 
 ```python
 def add_section_slide(prs, section_num, title, blank, subtitle=None):
-    """セクション区切り — Navy背景 + ゴースト番号(180pt, 半透明)"""
+    """セクション区切り — 黒背景 + 巨大ゴースト番号(180pt)。色は黒地に馴染む墨で微調整。"""
     slide = prs.slides.add_slide(blank)
-    # Navy背景（全面）
+    # 黒背景（全面）
     bg = slide.background.fill
     bg.solid()
-    bg.fore_color.rgb = NAVY
+    bg.fore_color.rgb = DARK_SECTION
 
-    # ゴースト番号（180pt、半透明 — NAVYより少し明るい色で透過効果）
+    # ゴースト番号（180pt — 黒地よりわずかに明るい墨 GHOST_ON_DARK）
     ghost = slide.shapes.add_textbox(Inches(0.5), Inches(1.0), Inches(5), Inches(3.5))
     tf_g = ghost.text_frame
     p_g = tf_g.paragraphs[0]
     run_g = p_g.add_run()
     run_g.text = f"{section_num:02d}"
     run_g.font.size = Pt(180)
-    run_g.font.color.rgb = GHOST_NAVY
+    run_g.font.color.rgb = GHOST_ON_DARK
     run_g.font.bold = True
     _apply_font(run_g)
 
-    # 左アクセントバー
+    # 左アクセントバー（クリムゾン）
     bar = slide.shapes.add_shape(
         MSO_SHAPE.RECTANGLE, Inches(1.0), Inches(3.0), Emu(36576), Inches(2.0)
     )
@@ -657,16 +694,16 @@ def add_section_slide(prs, section_num, title, blank, subtitle=None):
     bar.fill.fore_color.rgb = ACCENT
     bar.line.fill.background()
 
-    # セクションタイトル（32pt White Bold）
+    # セクションタイトル（30pt White Bold）
     txBox = slide.shapes.add_textbox(Inches(1.3), Inches(3.2), Inches(11), Inches(1.5))
     tf = txBox.text_frame
     tf.word_wrap = True
-    set_text(tf.paragraphs[0], title, Pt(32), WHITE, bold=True, line_spacing=1.2)
+    set_text(tf.paragraphs[0], title, Pt(30), WHITE, bold=True, line_spacing=1.25)
 
-    # サブタイトル（省略可）
+    # サブタイトル（省略可・淡グレー）
     if subtitle:
         txBox2 = slide.shapes.add_textbox(Inches(1.3), Inches(4.8), Inches(11), Inches(0.8))
-        set_text(txBox2.text_frame.paragraphs[0], subtitle, Pt(16), RGBColor(0xCC, 0xDD, 0xEE))
+        set_text(txBox2.text_frame.paragraphs[0], subtitle, Pt(16), RGBColor(0xB8, 0xB8, 0xBA))
 
     # ボトムライン
     bot = slide.shapes.add_shape(
@@ -1625,29 +1662,29 @@ def add_timeline_slide(prs, title, sub_message, events, blank,
 
 ### 3.15 クロージングスライド
 
-Navy背景。"Thank You" + レポートタイトル + APOLLOブランディング。
+黒背景（DARK_SECTION）。"Thank You" + レポートタイトル + APOLLOブランディング。
 
 ```python
 def add_closing_slide(prs, report_title, blank):
-    """クロージング — Navy背景 + Thank You"""
+    """クロージング — 黒背景 + Thank You"""
     slide = prs.slides.add_slide(blank)
     bg = slide.background.fill
     bg.solid()
-    bg.fore_color.rgb = NAVY
+    bg.fore_color.rgb = DARK_SECTION
 
     # "Thank You"
     txBox = slide.shapes.add_textbox(Inches(1.5), Inches(2.5), Inches(10), Inches(1.5))
     set_text(txBox.text_frame.paragraphs[0], "Thank You", Pt(48), WHITE, bold=True)
     txBox.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
 
-    # レポートタイトル
+    # レポートタイトル（淡グレー）
     txBox2 = slide.shapes.add_textbox(Inches(1.5), Inches(4.2), Inches(10), Inches(1))
-    set_text(txBox2.text_frame.paragraphs[0], report_title, Pt(16), RGBColor(0xAA, 0xBB, 0xDD))
+    set_text(txBox2.text_frame.paragraphs[0], report_title, Pt(16), RGBColor(0xB8, 0xB8, 0xBA))
     txBox2.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
 
-    # APOLLO ブランディング
+    # APOLLO ブランディング（より淡いグレー）
     txBox3 = slide.shapes.add_textbox(Inches(1.5), Inches(5.5), Inches(10), Inches(0.5))
-    set_text(txBox3.text_frame.paragraphs[0], "APOLLO Patent Analytics Platform", Pt(12), RGBColor(0x88, 0x99, 0xBB))
+    set_text(txBox3.text_frame.paragraphs[0], "APOLLO Patent Analytics Platform", Pt(12), MEDIUM_GRAY)
     txBox3.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
 
     # ボトムライン
@@ -1992,19 +2029,19 @@ def add_matrix_slide(prs, title, sub_message, quadrants, blank,
 | **サブメッセージ** | データに基づく1-2行の具体的洞察。全コンテンツスライドに必須 |
 | **注釈テキスト** | 3-5項目、各1-2行（最大40文字/行）、14ptフォント |
 | **出所** | データを含む全スライドに `add_source_label()` |
-| **フッター** | 全コンテンツスライドに `add_bottom_bar_and_footer()` |
-| **フッター文言** | "APOLLO"（"APOLLO CAPCOM" は不可） |
+| **ページ番号** | 全コンテンツスライドに `add_bottom_bar_and_footer()`（右下にページ番号のみ描画） |
+| **フッター帯** | 廃止。帯・区切り線・"APOLLO" ワードマークは置かない |
 | **長文禁止** | 3行を超えるテキストブロックは、カード or 箇条書きに分割 |
 
 ### レイアウトルール
 
 | ルール | 基準 |
 |--------|------|
-| **余白禁止** | コンテンツは下端ボトムバーまで埋める |
-| **ボトムバー** | 全スライド（タイトル/セクション/クロージング除く）にNAVY 4pxバー |
-| **タイトル下線** | 全コンテンツスライドにACCENT色の全幅下線 |
-| **セクション番号** | セクション区切りにゴースト番号（180pt、半透明） |
-| **白背景基調** | コンテンツスライドは白背景。Navy背景はタイトル/セクション/クロージングのみ |
+| **余白禁止** | コンテンツはタイトル下端からページ下端近くまで使い切る |
+| **ページ番号** | 全スライド（表紙/章扉/クロージング除く）の右下にページ番号のみ |
+| **タイトル装飾** | 全幅下線は廃止。タイトル左肩に短いクリムゾン EYEBROW 罫 |
+| **セクション番号** | 章扉（黒背景）に巨大ゴースト番号（180pt、黒地に馴染む墨） |
+| **背景基調** | コンテンツスライドは白背景。黒背景は表紙/章扉/クロージングのみ |
 
 ---
 
@@ -2124,8 +2161,8 @@ NG: "出願推移の分析結果を示す"（具体性なし）
 
 | # | 関数名 | 分類 | 用途 |
 |---|--------|------|------|
-| 1 | `add_title_slide()` | 構造 | 表紙（Navy背景） |
-| 2 | `add_section_slide()` | 構造 | セクション区切り（Navy+ゴースト番号） |
+| 1 | `add_title_slide()` | 構造 | 表紙（黒背景） |
+| 2 | `add_section_slide()` | 構造 | 章扉（黒背景+ゴースト番号） |
 | 3 | `add_chart_text_slide()` | **主力** | チャート + テキスト注釈 |
 | 4 | `add_kpi_slide()` | **主力** | KPIダッシュボード（動的カード） |
 | 5 | `add_cards_slide()` | ポンチ絵 | 3-4カード並列 |
@@ -2138,7 +2175,7 @@ NG: "出願推移の分析結果を示す"（具体性なし）
 | 12 | `add_pyramid_slide()` | ポンチ絵 | ピラミッド/階層 |
 | 13 | `add_hypothesis_slide()` | データ | 仮説検証テーブル |
 | 14 | `add_timeline_slide()` | ポンチ絵 | 水平タイムライン |
-| 15 | `add_closing_slide()` | 構造 | クロージング（Navy背景） |
+| 15 | `add_closing_slide()` | 構造 | クロージング（黒背景） |
 | — | `add_toc_slide()` | 補助 | 目次 |
 | — | `add_dual_panel_slide()` | 補助 | 2カラムチャート比較 |
 | — | `add_narrative_slide()` | 補助 | テキスト主体（10%以下） |
@@ -2154,9 +2191,9 @@ NG: "出願推移の分析結果を示す"（具体性なし）
 | `_apply_kinsoku()` | 段落に禁則処理 |
 | `add_rich_runs()` | **太字**マーカー解析 + フォント + 禁則 + 行間 |
 | `set_text()` | シンプルテキスト設定 |
-| `add_title_shape()` | 結論型タイトル + 全幅下線 → y座標を返す |
+| `add_title_shape()` | 結論型タイトル + 左肩クリムゾン EYEBROW 罫 → y座標を返す |
 | `add_sub_message()` | ■サブメッセージ → コンテンツ開始y座標を返す |
-| `add_bottom_bar_and_footer()` | ボトムバー(NAVY 4px) + フッター("APOLLO" + ページ番号) |
+| `add_bottom_bar_and_footer()` | 右下ページ番号のみ（帯/フッター/ワードマークは描画しない） |
 | `add_annotation_block()` | ■付きテキスト注釈ブロック |
 | `add_chart_label()` | チャート小見出し |
 | `add_chart_callout()` | チャート上の吹き出し注釈 |
