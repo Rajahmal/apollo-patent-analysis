@@ -435,7 +435,7 @@ def add_title_shape(slide, text, x=MARGIN_L, y=0.55, w=CONTENT_W, label=None):
 ### ■サブメッセージ
 
 ```python
-def add_sub_message(slide, message, x=0.5, y=None, w=12.3):
+def add_sub_message(slide, message, x=MARGIN_L, y=None, w=CONTENT_W):
     """■マーカー付きサブメッセージ（ボックス囲み、タイトル直下）
 
     KEY_MSG_BG背景 + 左ACCENTバーのボックスで要点を強調。
@@ -801,8 +801,8 @@ def add_chart_text_slide(prs, title, sub_message, image_path, annotations, blank
     sub_y = add_title_shape(slide, title)
     content_y = add_sub_message(slide, sub_message, y=sub_y)
 
-    content_w = 12.3
-    content_x = 0.5
+    content_w = CONTENT_W
+    content_x = MARGIN_L
     gap = 0.3
     chart_w = content_w * chart_ratio - gap / 2
     text_w = content_w * (1 - chart_ratio) - gap / 2
@@ -2076,6 +2076,160 @@ def add_matrix_slide(prs, title, sub_message, quadrants, blank,
 
 ---
 
+## Section 3.5: 本格考察スライド（単体運用・Deep Dive級）
+
+> グラフ頁は「結論＋要点3-5」までしか載らない。**段落・ミクロ分析の本格考察は、
+> グラフ頁の直後に必ず置く専用頁**（`add_insight_slide` 等）で展開する。
+> 文章を1つの大きなテキストボックスに流し込まず、**ラベル付きブロック**に分割して
+> スライドらしさを保つこと。色は墨基調、ラベルのみクリムゾン（原則6・7）。
+
+### 3.16 考察スライド（4層モデル / ラベル付きブロック）
+
+```python
+def add_insight_slide(prs, title, sub_message, layers, blank,
+                      label="考察", source=None, page_num=None):
+    """本格考察の専用頁。各トピックを最低3段落で論じる受け皿。
+
+    layers: [{"label":"事実", "body":"段落テキスト（複数文可）"},
+             {"label":"解釈", "body":"..."},
+             {"label":"洞察", "body":"..."},
+             {"label":"示唆", "body":"..."}]
+      4層モデル（事実→解釈→洞察→示唆）推奨。2-4ブロック。
+      各 body は段落（80-220字）。ラベルは赤の小見出し、本文は墨。
+    """
+    slide = prs.slides.add_slide(blank)
+    sub_y = add_title_shape(slide, title, label=label)
+    content_y = add_sub_message(slide, sub_message, y=sub_y) if sub_message else sub_y + 0.1
+
+    n = max(1, len(layers))
+    avail_h = 6.7 - content_y
+    gap = 0.18
+    block_h = (avail_h - gap * (n - 1)) / n
+    y = content_y
+    for lyr in layers:
+        # 左の細い赤バー
+        bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(MARGIN_L), Inches(y),
+                                     Emu(36576), Inches(block_h))
+        bar.fill.solid(); bar.fill.fore_color.rgb = ACCENT; bar.line.fill.background()
+        # ラベル（赤・小・字間広め）
+        lb = slide.shapes.add_textbox(Inches(MARGIN_L + 0.18), Inches(y),
+                                      Inches(2.0), Inches(0.3))
+        set_text(lb.text_frame.paragraphs[0], lyr.get("label", ""), Pt(11), ACCENT, bold=True)
+        # 本文段落（墨・読みやすい行間）
+        body = slide.shapes.add_textbox(Inches(MARGIN_L + 0.18), Inches(y + 0.30),
+                                        Inches(CONTENT_W - 0.18), Inches(block_h - 0.32))
+        tf = body.text_frame; tf.word_wrap = True; tf.auto_size = MSO_AUTO_SIZE.NONE
+        add_rich_runs(tf.paragraphs[0], lyr.get("body", ""), base_size=Pt(13),
+                      base_color=DARK_GRAY, bold_color=INK, line_spacing=1.4)
+        y += block_h + gap
+
+    if source:
+        add_source_label(slide, source)
+    add_bottom_bar_and_footer(slide, page_num)
+    return slide
+```
+
+### 3.17 代表特許ミクロ分析スライド
+
+```python
+def add_patent_micro_slide(prs, title, sub_message, patents, blank,
+                           label="代表特許", source=None, page_num=None):
+    """ミクロ分析A: 代表特許を「番号＋タイトル＋出願人＋技術的意義1-2文」で引用。
+
+    patents: [{"id":"特開2022-123456", "name":"発明タイトル",
+               "applicant":"出願人名", "note":"技術的意義・戦略的文脈（1-2文）"}]
+      1頁あたり4-6件。レポート全体で代表特許は計15件以上（複数頁に分割可）。
+    """
+    slide = prs.slides.add_slide(blank)
+    sub_y = add_title_shape(slide, title, label=label)
+    content_y = add_sub_message(slide, sub_message, y=sub_y) if sub_message else sub_y + 0.1
+
+    n = max(1, len(patents))
+    avail_h = 6.7 - content_y
+    gap = 0.14
+    row_h = (avail_h - gap * (n - 1)) / n
+    y = content_y
+    for p in patents:
+        card = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(MARGIN_L), Inches(y),
+                                      Inches(CONTENT_W), Inches(row_h))
+        card.fill.solid(); card.fill.fore_color.rgb = PALE_GRAY; card.line.fill.background()
+        # 1行目: 番号(赤) + タイトル(墨太) + 出願人(グレー)
+        head = slide.shapes.add_textbox(Inches(MARGIN_L + 0.18), Inches(y + 0.08),
+                                        Inches(CONTENT_W - 0.36), Inches(0.32))
+        hp = head.text_frame.paragraphs[0]
+        r1 = hp.add_run(); r1.text = p.get("id", "") + "  "; r1.font.size = Pt(12)
+        r1.font.bold = True; r1.font.color.rgb = ACCENT; _apply_font(r1)
+        r2 = hp.add_run(); r2.text = p.get("name", ""); r2.font.size = Pt(12)
+        r2.font.bold = True; r2.font.color.rgb = INK; _apply_font(r2)
+        r3 = hp.add_run(); r3.text = "　（" + p.get("applicant", "") + "）"
+        r3.font.size = Pt(11); r3.font.color.rgb = MEDIUM_GRAY; _apply_font(r3)
+        # 2行目: 技術的意義
+        note = slide.shapes.add_textbox(Inches(MARGIN_L + 0.18), Inches(y + 0.40),
+                                        Inches(CONTENT_W - 0.36), Inches(row_h - 0.46))
+        nt = note.text_frame; nt.word_wrap = True
+        set_text(nt.paragraphs[0], p.get("note", ""), Pt(11), DARK_GRAY, line_spacing=1.3)
+        y += row_h + gap
+
+    if source:
+        add_source_label(slide, source)
+    add_bottom_bar_and_footer(slide, page_num)
+    return slide
+```
+
+### 3.18 出願人プロファイルスライド（各5行以上）
+
+```python
+def add_applicant_profile_slide(prs, title, sub_message, profiles, blank,
+                                label="出願人プロファイル", source=None, page_num=None):
+    """ミクロ分析B: 上位5社以上を各「最低5行」の戦略分析で記述。
+
+    profiles: [{"name":"A化学", "metrics":"182件 / クラスタ0偏在 / IPC C08L",
+                "lines":["クラスタ分布の特徴…", "IPC/技術領域…", "年別推移…",
+                         "競合比較・ポジション…", "戦略的含意…"]}]
+      1頁あたり1-2社（5行を潰さないため）。レポート全体で5社以上。
+    """
+    slide = prs.slides.add_slide(blank)
+    sub_y = add_title_shape(slide, title, label=label)
+    content_y = add_sub_message(slide, sub_message, y=sub_y) if sub_message else sub_y + 0.1
+
+    n = max(1, len(profiles))
+    avail_h = 6.7 - content_y
+    gap = 0.25
+    card_h = (avail_h - gap * (n - 1)) / n
+    y = content_y
+    for pr in profiles:
+        card = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(MARGIN_L), Inches(y),
+                                      Inches(CONTENT_W), Inches(card_h))
+        card.fill.solid(); card.fill.fore_color.rgb = LIGHT_GRAY; card.line.fill.background()
+        bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(MARGIN_L), Inches(y),
+                                     Emu(36576), Inches(card_h))
+        bar.fill.solid(); bar.fill.fore_color.rgb = ACCENT; bar.line.fill.background()
+        # ヘッダー: 社名(墨太) + メトリクス(グレー小)
+        head = slide.shapes.add_textbox(Inches(MARGIN_L + 0.2), Inches(y + 0.1),
+                                        Inches(CONTENT_W - 0.4), Inches(0.32))
+        hp = head.text_frame.paragraphs[0]
+        rn = hp.add_run(); rn.text = pr.get("name", ""); rn.font.size = Pt(15)
+        rn.font.bold = True; rn.font.color.rgb = INK; _apply_font(rn)
+        rm = hp.add_run(); rm.text = "　" + pr.get("metrics", "")
+        rm.font.size = Pt(11); rm.font.color.rgb = MEDIUM_GRAY; _apply_font(rm)
+        # 本文: 5行以上の箇条
+        body = slide.shapes.add_textbox(Inches(MARGIN_L + 0.2), Inches(y + 0.46),
+                                        Inches(CONTENT_W - 0.4), Inches(card_h - 0.52))
+        tf = body.text_frame; tf.word_wrap = True; tf.auto_size = MSO_AUTO_SIZE.NONE
+        for j, line in enumerate(pr.get("lines", [])):
+            p = tf.paragraphs[0] if j == 0 else tf.add_paragraph()
+            rr = p.add_run(); rr.text = "・" + line; rr.font.size = Pt(12)
+            rr.font.color.rgb = DARK_GRAY; _apply_font(rr); p.line_spacing = 1.3
+        y += card_h + gap
+
+    if source:
+        add_source_label(slide, source)
+    add_bottom_bar_and_footer(slide, page_num)
+    return slide
+```
+
+---
+
 ## Section 4: スライド構成ルール
 
 ### 枚数・比率ルール
@@ -2249,6 +2403,9 @@ NG: "出願推移の分析結果を示す"（具体性なし）
 | — | `add_image_slide()` | 補助 | チャート全画面 |
 | — | `add_recommendation_slide()` | 補助 | 推奨アクション |
 | — | `add_matrix_slide()` | 補助 | 2x2マトリクス |
+| 16 | `add_insight_slide()` | **考察** | 専用考察頁（4層モデル/ラベル付きブロック） |
+| 17 | `add_patent_micro_slide()` | **考察** | 代表特許ミクロ分析（番号+意義） |
+| 18 | `add_applicant_profile_slide()` | **考察** | 出願人プロファイル（各5行以上） |
 
 ### コア関数一覧
 
@@ -2267,3 +2424,56 @@ NG: "出願推移の分析結果を示す"（具体性なし）
 | `add_highlight_circle()` | チャート上のハイライト丸囲み |
 | `fit_image()` | アスペクト比保持画像 |
 | `add_source_label()` | （出所）ラベル |
+| `add_insight_slide()` | 専用考察頁（4層モデル/ラベル付きブロック） |
+| `add_patent_micro_slide()` | 代表特許ミクロ分析 |
+| `add_applicant_profile_slide()` | 出願人プロファイル（各5行以上） |
+
+---
+
+## Section 7: 単体運用モード（Deep Dive級・本格レポート）
+
+PPTX単体を最終レポートとして用いるための上位モード。スライドだけで Deep Dive
+レポート（report.typ）と同等の情報密度・考察深度を満たす。本モードでは Section 4 の
+枚数・比率の上限を緩和し、**章ごとに「グラフ頁→専用考察頁」を必ず対にする**。
+
+### 7.1 考察レイアウトの絶対ルール（最重要）
+- **グラフ頁**: 視覚＋結論型タイトル＋要点3-5（`add_chart_text_slide` 等）。ここに段落は書かない。
+- **直後に専用考察頁を必ず置く**（`add_insight_slide`）。本格考察（最低3段落／4層モデル
+  事実→解釈→洞察→示唆）はこちらで展開する。グラフ頁に詰め込まない（不自然・可読性低下を防ぐ）。
+- ミクロ分析は `add_patent_micro_slide`（代表特許）／`add_applicant_profile_slide`（出願人）で頁を分ける。
+- 1スライド1メッセージ。考察頁でも文章は**ラベル付きブロック**に分割し、壁のような本文を作らない。
+
+### 7.2 考察ソース（あれば転記／無ければ生成）
+1. **`reports/report.typ`（Deep Diveレポート）が既にある場合**: その本格考察を**漏れなく**スライド化する
+   （全セクション・全段落の要点を `add_insight_slide` 等へ転記。情報を削らない＝頁を増やして対応）。
+2. **無い場合**: その場で Deep Dive級の考察を生成する。着手前に必ず以下を読む（省略禁止）:
+   - `capcom_schema/analysis/deep_dive_guide.md`（段落深度・ミクロ分析・So Whatテスト）
+   - `capcom_schema/analysis/common_framework.md`（4層モデル・数値根拠の書式）
+   - `capcom_schema/analysis/cross_module.md`（クロス分析13パターン）
+   - `capcom_schema/analysis/report_structure.md`（章立て）
+   - `capcom_schema/analysis/quality_checklist.md`（定量ゲート）
+   - `capcom_schema/analysis/terminology.md`（用語統一＝最優先）
+   - セッションの `prompts/` AIインサイト（**最低3件**）、`data/patents.csv`、全モジュールJSON、`snapshots/`、`voyager/mission.json`・`context.json`
+
+### 7.3 単体レポートの章立て（章ごとにグラフ頁＋考察頁を対に）
+```
+表紙 → 目次 → エグゼクティブサマリー(章扉/KPI/結論) → 本分析の前提(設計意図・範囲と限界)
+→ [各モジュール章]  章扉 → グラフ頁 → 専用考察頁(4層) →（必要に応じ）代表特許ミクロ頁 → 出願人プロファイル頁
+→ クロスモジュール分析(章扉 → 各パターン: グラフ/表頁 → 考察頁。最低3パターン)
+→ 仮説検証(add_hypothesis_slide) → 戦略的提言(4節: 短期/中期/長期/前提リスク)
+→ 付録(母集団検索式 全文 / 用語の正式呼称 / Web調査出所一覧 / データセット概要)
+→ クロージング
+```
+
+### 7.4 品質ゲート（単体運用時・Deep Dive基準のスライド版）
+出力前に全て満たすこと（`deep_dive_guide.md`・`quality_checklist.md` 準拠）:
+- [ ] **代表特許 計15件以上**（`add_patent_micro_slide` 横断。各件に技術的意義1-2文）
+- [ ] **出願人プロファイル 5社以上**（各5行以上。`add_applicant_profile_slide`）
+- [ ] **クロスモジュール 最低3パターン**（各 仮説→検証→結論。グラフ/表頁＋考察頁）
+- [ ] **4層モデル**の痕跡（事実/解釈/洞察/示唆 または「解釈」「示唆」「検討すべき」語）が各章の考察頁にある
+- [ ] **v7/v8新機能の解釈**（ノイズ分析・クラスタ動態マップ・多様性指標Entropy/Gini・学術ランドスケープ）を必ず含む
+- [ ] **視覚要素 8枚以上**（チャート/ポンチ絵）。考察頁が連続しすぎないようグラフ頁と交互に
+- [ ] **設計意図への参照**を主要章の考察頁に最低1箇所（`query_intent` がある場合）
+- [ ] **用語ルール厳守**: 内部ファイル名（`*_clusters.json` 等）・内部フィールド名（`spatial_context`・`cluster_dynamics` 等）・内部ガイド名（`*.md`）・`J-PlatPat` 等の表記をスライド本文に書かない（`terminology.md` の正式日本語呼称を使う）
+- [ ] **付録に母集団検索式の全文**（`population_meta.query_logic` がある場合）と**Web調査出所一覧**（使用時）
+- [ ] Web情報を使う場合は出所（サイト名・URL・取得日）をスライドに明記

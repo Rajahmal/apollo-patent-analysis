@@ -68,6 +68,23 @@ BORDER_GRAY: #D8DADD  (罫線)
 - **タイポは3階層**: 見出し / 小見出し・ラベル / 本文。中間サイズを足さない。差はサイズより太さ・字間・色でつける。
 - **EYEBROWラベル**: タイトル上に小さな赤ラベル（モジュール名・分類、例 `ATLAS / 出願トレンド`）。`add_title_shape(slide, title, label="...")`。
 
+## 単体運用モード（本格レポート / Deep Dive級）
+
+このPPTXを**単体で最終レポート**として使えるよう、スライドだけで Deep Diveレポート
+（report.typ）と同等の考察深度を持たせるモード。**既定でこのモードで作る**。
+手順・章立て・品質ゲートの詳細は **`slides_spec.md` Section 7** に集約（ここでは要点のみ）:
+
+- **考察レイアウトの絶対ルール**: 章ごとに「**グラフ頁 → 直後に専用考察頁**」を必ず対にする。
+  グラフ頁＝視覚＋結論＋要点3-5。本格考察（最低3段落・4層モデル）は専用考察頁
+  （`add_insight_slide`）で展開。グラフ頁に段落を詰め込まない。
+- **考察ソース**: `reports/report.typ` があればその本格考察を**漏れなく転記**（情報を削らず頁を増やす）。
+  無ければ `capcom_schema/analysis/{deep_dive_guide,common_framework,cross_module,report_structure,quality_checklist,terminology}.md` と
+  セッションの `prompts/`（**最低3件**）・`data/patents.csv` を読み、その場で Deep Dive級を生成。
+- **新スライド型**: `add_insight_slide`（4層考察頁）/ `add_patent_micro_slide`（代表特許）/
+  `add_applicant_profile_slide`（出願人プロファイル各5行以上）。
+- **品質ゲート（slides_spec.md §7.4）**: 代表特許15件以上 / 出願人5社以上 / クロス3パターン以上 /
+  v7・v8新機能の解釈 / 用語ルール厳守（内部名禁止）/ 付録に母集団検索式・出所一覧。
+
 ## スライド構成
 
 ### 必須スライド
