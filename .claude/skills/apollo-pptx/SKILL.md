@@ -1,238 +1,123 @@
 ---
 name: apollo-pptx
-description: APOLLOの分析結果からコンサルティングファーム品質のPowerPointスライドを生成する。PPT作成、スライド作成、プレゼン資料作成で起動。
+description: APOLLOのCAPCOMセッションデータから、slide-patterns v5エンジン（pptxgenjs/Node）でエディトリアル品質のPowerPointを生成する。PPT作成・スライド作成・プレゼン資料作成・報告書で起動。
 command: /pptx
 ---
 
-# APOLLO PPTXスキル — コンサルティングレポート品質のスライド生成
+# APOLLO PPTX — CAPCOM × slide-patterns 連携層
 
-## ⚠️ 優先順位ルール（最重要・厳守）
+## 役割（このスキルの立ち位置）
 
-**スライド生成時は `capcom_schema/templates/slides_spec.md` を最優先で参照すること。**
+本スキルは **デザインエンジンではない**。デザインの権威は **`slide-patterns` スキル**（pptxgenjs/Node 製・v5）にある。
+本スキルは「**APOLLOのCAPCOM分析出力を、slide-patterns のどのパターンに・どの順序で・どの用語規律で流し込むか**」だけを定義する**適合層（binding layer）**である。
 
-- 本SKILL.mdの記述（関数名・スライド比率・ポンチ絵パターン数・カラー定義など）と `slides_spec.md` の記述が**矛盾する場合、必ず `slides_spec.md` を採用する**
-- 本SKILL.mdは概要・起動条件・運用ルールを示すメタ文書であり、実装仕様の正は `slides_spec.md`（現行 v5.0、スライドタイプ15種）にある
-- 関数名の例: SKILL.md が `add_process_flow()` / `add_matrix_2x2()` などを記載していても、実際は `slides_spec.md` の `add_process_slide()` / `add_matrix_slide()` 等を使用すること
+```
+slide-patterns（デザインの正）  ──┐
+                                  ├─→ apollo-pptx が束ねる ─→ reports/apollo_report_YYYYMMDD.pptx
+CAPCOM 分析データ（中身の正）  ──┘
+```
 
-## 概要
-APOLLOのCAPCOMセッションデータ（JSON + スナップショット画像）から、python-pptxを使ってコンサルティングファーム品質のPowerPointスライドを自動生成する。
+- デザイン仕様（フォント・配色・レイヤー思想・18プリミティブ・パターンID・チャート書式）の判断はすべて slide-patterns に従う。本スキルと矛盾したら **slide-patterns を採用**する。
+- 配色は slide-patterns 既定の **クリムゾン（Navy Editorial, accent `8C1A1A`）をそのまま使用**する。APOLLO独自パレットは作らない。
+- 旧 python-pptx 仕様（`slides_spec.md`）は**廃止**。参照しない。
 
 ## 起動条件
-- ユーザーが `/pptx` コマンドを実行
-- ユーザーが「スライドを作って」「PPTを生成して」「プレゼン資料を作って」と依頼
+- ユーザーが `/pptx` を実行、または「スライド/PPT/プレゼン資料/報告書を作って」と依頼。
+- CAPCOMセッションフォルダ（`session_xxx/` または ZIP展開フォルダ）が存在すること。
 
-## 前提条件
-- CAPCOMセッションフォルダ（output/session_xxx/ または ZIPを展開したフォルダ）が存在すること
-- `capcom_schema/templates/slides_spec.md` を仕様書として参照すること
-- `capcom_schema/templates/apollo_template.pptx` をテンプレートとして使用すること
-- `pip install python-pptx Pillow` が必要
+## 前提・環境
+- Node エンジン: `capcom_schema/templates/slidegen/`（`package.json` / `base.js` / `backdrops.js` / `build_capcom_deck.js`）。
+- 初回のみ依存をインストール: `cd capcom_schema/templates/slidegen && npm install`（pptxgenjs / react / react-dom / react-icons / sharp）。
+- ネット遮断環境では `npm install` が失敗しうる。その場合はユーザーに依存導入を依頼する。
 
-## 設計原則（slides_spec.mdに準拠）
+## 手順
 
-### 可視化ファースト原則
-- **チャート・図が主役**、テキストは注釈
-- チャート+注釈スライドが40%以上
-- テキスト主体（ナラティブ）は15%以下に制限
+### Step 1: slide-patterns を読む（省略禁止）
+slide-patterns の §v5-9 の順で読む:
+1. `references/backdrop-dramaturgy.md`（舞台を選ぶ）
+2. `references/canvas-vocabulary.md`（18プリミティブ）
+3. `references/design-system.md`（規格）
+4. `references/components.md`（必須関数）
+5. `references/patterns/layered.md`（レイヤード系）
+6. 各スライドで使う該当パターンファイル
+
+### Step 2: CAPCOMセッションデータを読む（CAPCOM思想の核）
+- `voyager/mission.json` — Mission Objective（表紙・全体結論に反映）。
+- `data/patents.csv` — **必読**。出願人上位・クラスタ別件数・年別件数を把握。
+- `data/*.json` — 各モジュール分析結果（ATLAS統計、Saturn Vクラスタ、MEGAモメンタム、NEBULA等）。
+- `prompts/` — AIインサイト最低3件読了（読まずに作ると表面的になる）。
+- `snapshots/*.png` — 再現不可能な可視化（後述ハイブリッド方針）。
+
+### Step 3: デッキ構成を決める（型・舞台・Levelを各スライドに割当）
+slide-patterns §0-3'（スライド型 / 舞台美術レシピ / 演出Level）と §v5-5（演出リズム）に従う。
+**章扉=Level 3、章扉直後=Level 0-1、同Level 4枚連続を避ける。**
+
+### Step 4: 生成
+`build_capcom_deck.js` を雛形に、Step 2 のデータを Step 3 の構成へ流し込み、
+`node build_capcom_deck.js <session_dir>` で `reports/apollo_report_YYYYMMDD.pptx` を出力する。
+
+## CAPCOM → slide-patterns パターン マッピング（本スキルの中核）
+
+| CAPCOMの分析 | データソース | 推奨パターン / 関数 | 画像方針 |
+|---|---|---|---|
+| エグゼクティブサマリー / 主要KPI | mission + 各統計 | LH1 / LK1 / K1 / K2 / `addKPICard` | ネイティブ |
+| 目次 | デッキ構成 | S3 / `addTOC` | — |
+| 章扉 | 各モジュール導入 | S2 / `addSectionDivider`（Level 3） | 任意背景 |
+| ATLAS 出願推移 | atlas統計 | D1 / LCC1 / `addChart`+`lineChartOpts` | ネイティブ |
+| ATLAS 出願人ランキング | atlas統計 | D2 / `addStyledTable` | ネイティブ |
+| 多様性指標(HHI/Entropy/Gini) | atlas統計 | K2 / IR2 / `addKPICard` | ネイティブ |
+| 技術ランドスケープ(UMAP) | クラスタ + snapshot | Stage型 画像スライド + X1解説 | **スナップショット埋込** |
+| クラスタ動態マップ(4象限) | クラスタ動態 | C2 / `addMatrix` | ネイティブ |
+| ノイズ/萌芽テーマ | ノイズ分析 | X2 / ピラミッド層別 | ネイティブ |
+| MEGA 4象限(CAGR×活動量) | モメンタム | C2 / RM1 / `addMatrix` or scatter | ネイティブ or snapshot |
+| Explorer 共起ネットワーク | snapshot | Stage型 画像スライド | **スナップショット埋込** |
+| 急上昇キーワード | explorer統計 | D2 / `addStyledTable` | ネイティブ |
+| CREW ネットワーク(媒介中心性) | snapshot | Stage型 画像スライド | **スナップショット埋込** |
+| NEBULA ハイプサイクル | hype分析 | D1 / 画像 | スナップショット |
+| 学術 vs 特許 比較 | 学術クラスタ | LCM1 / CS2(Before/After) | ネイティブ |
+| 仮説検証サマリー | CAPCOMレポート | C3 / IR2 / `addStyledTable` | ネイティブ |
+| 戦略ロードマップ | 提言 | P1 / P2 / SC1 / `addTimeline` | ネイティブ |
+| 推奨アクション | 提言 | AT1 / SC1 / RC1 | ネイティブ |
+| 政策・市場イベント時系列 | NEBULA環境 | `addTimeline` | ネイティブ |
+
+## ハイブリッド画像方針（確定）
+- **ネイティブ再描画（原則）**: 棒/折れ線/積み上げ/ドーナツ等の単純グラフは pptxgenjs `addChart()` で描き直し、エディトリアル統一する（`barChartOpts` / `lineChartOpts` / `stackedBarOpts`）。CAPCOMのJSON数値から再構成する。
+- **スナップショット埋込（例外）**: UMAP技術ランドスケープ・共起ネットワーク・媒介中心性ネットワーク等、座標やレイアウトを再現できない可視化のみ `snapshots/*.png` を `slide.addImage()` で配置し、Stage型として演出（CornerBracket枠 + 余白 + 注釈は `addCommentary`）。
+
+## CAPCOM思想の保持（品質の前提・厳守）
+
+### 用語規律（最優先）
+- レポート本文・スライドに **内部ファイル名**（`saturnv_clusters.json` 等）・**内部フィールド名**（`spatial_context` / `cluster_dynamics` 等）・**内部ガイド名**（`*.md`）を**書かない**。
+- 正式な日本語呼称は `capcom_schema/analysis/terminology.md` に従う。
 
 ### タイトル＝結論 原則
-- スライドタイトルは**結論そのもの**（ラベルではない）
-- `～` で副題を付けて1行でストーリーを完結させる
-- 例: 「上位5クラスタが全体の58%を占有 ～技術集中化が加速、差別化領域の特定が急務」
+- スライドタイトルはラベルでなく**結論そのもの**。`〜`で副題を付け1行でストーリーを完結。
+- 例:「上位5クラスタが全体の58%を占有 〜技術集中化が加速、差別化領域の特定が急務」
 
-### ■サブメッセージ
-- タイトル直下に■マーカー付き1-2行テキスト
-- KEY_MSG_BG背景ボックス + 左ACCENTバーで囲む
+### ファクトベース・出所明記
+- 想像のデータ禁止。Web情報を使う場合は出所（URL/サイト名/取得日）を明記。CAPCOMの数値根拠を保持。
 
-### フォント
-- **Meiryo UI** 統一（日英とも）
-- 全runに `lang="ja-JP"` 明示
-- 禁則処理適用
+### 分析の網羅性（CAPCOM由来）
+- v7/v8新機能（ノイズ分析・クラスタ動態・多様性指標(Entropy/Gini)・学術ランドスケープ）の解釈を必ず含める。
+- 仮説検証・推奨アクションのスライドを締めに置く。
 
-### カラーパレット
-```
-NAVY:        #1B2A4A  (タイトル、強調)
-BLUE:        #2E5090  (セクションヘッダー背景)
-ACCENT:      #3B7DD8  (アクセントバー)
-DARK_GRAY:   #333333  (本文)
-MEDIUM_GRAY: #666666  (補足)
-LIGHT_GRAY:  #F2F2F2  (テーブルゼブラ)
-KEY_MSG_BG:  #E8F0FE  (強調ボックス)
-RED_ACCENT:  #D64545  (マイナス指標)
-GREEN_ACCENT:#2E8B57  (ポジティブ指標)
-```
-
-## スライド構成
-
-### 必須スライド
-1. **表紙** — ネイビー背景、白文字タイトル + Mission Objective + 日付
-2. **エグゼクティブサマリー** — KPI 3-4個 + 結論3点
-3. **目次** — 章立て一覧
-
-### 分析スライド（モジュール別、利用可能なデータに応じて選択）
-
-| モジュール | スライドタイプ | データソース |
-|-----------|-------------|-----------|
-| ATLAS | 出願トレンド（棒グラフ+注釈）| atlas_statistics.json |
-| ATLAS | 出願人ランキング + HHI/Entropy/Gini | atlas_statistics.json |
-| Saturn V | 技術ランドスケープ（スナップショット画像+注釈）| saturnv_clusters.json + snapshots/ |
-| Saturn V | クラスタ動態マップ（4象限+注釈）| saturnv_clusters.json の cluster_dynamics |
-| Saturn V | ノイズ分析（萌芽テーマ）| saturnv_clusters.json の noise_analysis |
-| MEGA | PULSE 4象限（スナップショット+注釈）| mega_momentum.json + snapshots/ |
-| Explorer | 共起ネットワーク（スナップショット+注釈）| snapshots/ |
-| Explorer | 急上昇キーワード（テーブル）| explorer_*.json |
-| CREW | ネットワーク分析（スナップショット+注釈）| snapshots/ |
-| NEBULA | Hype Cycle（スナップショット+注釈）| nebula_hype_cycle.json |
-| NEBULA | 学術ランドスケープ（スナップショット+注釈）| nebula_academic_clusters.json |
-| NEBULA | 学術クラスタ動態マップ | nebula_academic_clusters.json の cluster_dynamics |
-
-### 必須締めスライド
-- **仮説検証サマリー** — CAPCOMレポートの仮説検証テーブルをスライド化。各仮説の判定（✅/❌/⚠️）と根拠を1行ずつ
-- **戦略提言** — `add_process_flow()`で短期→中期→長期の矢印フロー ← **テキストのみ禁止、ポンチ絵必須**
-- **Appendix** — データセット概要、分析パラメータ
-
-### テキストのみスライドへのポンチ絵割り当て（⚠️ 必ず適用）
-
-以下のスライドタイプは画像がないためテキストのみになりがち。**必ず対応するポンチ絵を生成すること:**
-
-| スライド | ポンチ絵 | 関数 |
-|--------|--------|------|
-| エグゼクティブサマリー | KPIカード行（9指標を3行×3列） | `add_kpi_cards()` |
-| 超領域解説（Saturn V） | 2×2マトリクス（超領域の成長/成熟ポジション） | `add_matrix_2x2()` |
-| ホワイトスペース | ピラミッド（特許化の機会を層別表示） | `add_pyramid()` |
-| 主要発見サマリー | プロセスフロー（発見1→2→3→4→5） | `add_process_flow()` |
-| 推奨アクション | プロセスフロー（短期→中期→長期） | `add_process_flow()` |
-| 仮説検証 | テーブル（仮説ID/内容/判定/根拠） | `add_comparison_table()` |
-| NEBULAマクロ環境 | タイムライン（政策イベント時系列） | `add_timeline()` |
-| 競争構造 | 2×2マトリクス（業種×ポジション） | `add_matrix_2x2()` |
-
-## スライドレイアウト種別
-
-### 1. チャート+注釈（最頻出、40%以上使用）
-```
-|  チャート画像 (60%)  |  テキスト注釈 (40%)  |
-|  snapshots/xxx.png  |  ■ 要点1          |
-|                     |  ■ 要点2          |
-|                     |  ■ 要点3          |
-```
-
-### 2. デュアルパネル（比較用）
-```
-|  チャート1 (50%)    |  チャート2 (50%)    |
-|  Before / Patent    |  After / Academic   |
-```
-
-### 3. テーブル+注釈
-```
-|  データテーブル (60%) |  テキスト注釈 (40%) |
-```
-
-### 4. ナラティブ（エグゼクティブサマリー等、最小限）
-```
-|  タイトル（結論型）                        |
-|  ■ サブメッセージ                         |
-|  本文テキスト（箇条書き、最大5項目）        |
-```
-
-## レイアウト連動ルール（重要）
-
-タイトルとサブメッセージの位置は**必ず連動させる**こと。固定座標でハードコードしてはならない。
-
-```python
-# ✅ 正しい使い方: タイトルの戻り値でサブメッセージの位置を決める
-sub_y = add_title_shape(slide, "上位5クラスタが全体の58%を占有 ～技術集中化が加速")
-content_y = add_sub_message(slide, "■ クラスタ0「CNF強化ゴム」が最大（48件）...", y=sub_y)
-
-# ❌ 間違い: y座標をハードコードするとタイトルとボックスが重なる
-add_title_shape(slide, "長いタイトル...")
-add_sub_message(slide, "...", y=0.90)  # タイトルが長いと重なる
-```
-
-`add_title_shape()` はタイトルの長さに応じてフォントサイズと高さを動的調整し、サブメッセージの開始y座標を返す。`add_sub_message()` はボックス下端のy座標を返す。コンテンツ（チャート・テーブル等）はその戻り値を起点に配置する。
-
-## 実装手順
-
-1. `capcom_schema/templates/slides_spec.md` を読み込む（全コードパターンが記載）
-2. セッションフォルダの `data/` と `snapshots/` と `voyager/mission.json` を確認
-3. 利用可能なデータに応じてスライド構成を決定
-4. slides_spec.md のコードパターンに従い、各スライドを生成
-5. **各スライドのタイトル→サブメッセージ→コンテンツは必ず戻り値を連鎖させる**
-6. 出力先: `reports/` フォルダに `apollo_report_YYYYMMDD.pptx`
-
-## デザインルール（厳守）
-
-### フッター
-- フッターのテキストは**「APOLLO」のみ**（「APOLLO CAPCOM」は不可）
-- `add_footer(slide, slide_num, report_title="APOLLO")`
-
-### テキスト量の制限
-- **サブメッセージ（■ボックス）**: 2行以内（80文字以内）。それ以上は箇条書きに分割する
-- **注釈テキスト（チャート横）**: 各■項目は1-2行。箇条書き3-5項目が上限
-- **長い文章をそのまま1つのテキストボックスに入れることは禁止**。必ず■マーカーで分割する
-- テキストボックスの幅に対してフォントサイズが大きすぎると不自然な改行が発生する。注釈は14pt、サブメッセージは16ptを厳守
-
-### 図表・ポンチ絵の必須掲載
-- **全分析スライド（セクション区切りを除く）に最低1つの視覚要素を含めること**
-- テキストのみのスライドは**絶対禁止**（エグゼクティブサマリーでもKPIカードを入れる）
-- `snapshots/` に画像がある場合は`fit_image()`で優先掲載する
-- **画像がない章にはポンチ絵を積極的に生成する**（slides_spec.mdのポンチ絵パターンを参照）
-
-### ポンチ絵の使用ガイド（コンサル・シンクタンク品質）
-slides_spec.mdに6種のポンチ絵パターンのコードが定義されている。以下の基準で使い分けること:
-
-| パターン | 関数名 | 使用場面 |
-|--------|-------|--------|
-| **矢印プロセスフロー** | `add_process_flow()` | 技術進化の段階、ロードマップ（例: 探索期→成長期→成熟期→第二成長期） |
-| **2×2マトリクス** | `add_matrix_2x2()` | MEGA 4象限の解釈、クラスタ動態の4象限（成長リーダー/新興/成熟/ニッチ） |
-| **KPIカード行** | `add_kpi_cards()` | エグゼクティブサマリー冒頭、各モジュールの主要数値（件数/CAGR/HHI等） |
-| **ピラミッド** | `add_pyramid()` | 技術階層（基盤技術→応用技術→萌芽技術）、3段ロケット構造 |
-| **比較テーブル** | `add_comparison_table()` | 出願人TOP5比較、クラスタ間比較（条件付きハイライト） |
-| **タイムライン** | `add_timeline()` | NEBULA政策イベント、技術マイルストーン、出願の転換点 |
-
-**ポンチ絵の推奨使用場面（必ず検討すること）:**
-1. **エグゼクティブサマリー**: KPIカード行（4指標） ← 必須
-2. **ATLAS**: タイムラインで出願の4期区分を可視化
-3. **Saturn V**: 2×2マトリクスでクラスタ動態の4象限を図解
-4. **MEGA**: 2×2マトリクスでPULSE 4象限のプレイヤー配置
-5. **戦略提言**: 矢印プロセスフローで短期→中期→長期アクションを表現
-6. **NEBULA**: タイムラインで政策・市場イベントを時系列表示
-7. **技術階層**: ピラミッドで基盤→応用→萌芽の3層構造を図解
-
-### スライド構成比率の厳守
-| スライドタイプ | 比率 | 条件 |
-|-------------|------|------|
-| チャート+注釈 | **50%以上** | 画像左(60%) + 注釈右(40%) |
-| デュアルパネル | 10-15% | 2画像並列比較 |
-| テーブル+注釈 | 10-15% | データテーブル + 考察 |
-| ナラティブ | **10%以下** | エグゼクティブサマリー・提言のみ |
-| セクション区切り | 残り | モジュール名 + 1行説明 |
-
-### タイトルの視認性
-- タイトルは**24pt Bold Navy**。スライド上部に明確に配置
-- タイトルの下に**全幅のACCENTライン**で区切る
-- タイトルとサブメッセージの間にラインがあることで、視覚的な区切りが明確になる
-- サブメッセージとコンテンツの間にも十分な余白（0.1インチ以上）を確保
-
-### テキストの改行制御
-- `word_wrap = True` を全テキストボックスに設定
-- `auto_size = MSO_AUTO_SIZE.NONE` でテキストボックスのサイズを固定
-- テキストが溢れる場合はフォントサイズを下げるか、テキストを短縮する
-- **日本語テキストで句読点が行頭に来る禁則処理**: `_apply_kinsoku()` を全段落に適用
+## デザイン上の固定事項
+- フッターは **「APOLLO」** のみ（`addFooter(slide, n, 'APOLLO')`）。「APOLLO CAPCOM」不可。
+- 16:9 レイアウト（`C16x9` 10×5.625in）。
+- 描画順序: `pres.addSlide()` 直後に舞台美術プリミティブ（最背面）→ `addHeader` → 本体 → `addFooter`（slide-patterns §v5-7）。
 
 ## 品質チェックリスト
-- [ ] フッターが「APOLLO」になっているか（「APOLLO CAPCOM」は不可）
-- [ ] 全スライドのタイトルが結論型（ラベル型は不可）
-- [ ] チャート+注釈スライドが全体の50%以上
-- [ ] ナラティブスライドが10%以下（エグゼクティブサマリー+提言のみ）
-- [ ] 全分析スライドに図表が含まれているか
-- [ ] 全runに Meiryo UI + lang="ja-JP"
-- [ ] ■サブメッセージが2行以内か
-- [ ] 注釈テキストが3-5項目の箇条書きか（長文ブロック不可）
-- [ ] タイトルとサブメッセージが重なっていないか
-- [ ] カラーパレット遵守（NAVY/ACCENT/DARK_GRAY）
-- [ ] 表紙にMission Objective記載
-- [ ] エグゼクティブサマリーにKPI 3-4個
+- [ ] フッターが「APOLLO」のみ
+- [ ] 全タイトルが結論型（ラベル型不可）
+- [ ] 内部ファイル名・内部フィールド名・`*.md`名が本文に露出していない（terminology.md準拠）
+- [ ] 主役は1スライド1つ、ジャンプ率は最低2倍
+- [ ] チャートは凡例オフ・direct labeling（slide-patterns §5）
+- [ ] shadow / gradient / 角丸 / 11pt未満 を使っていない
+- [ ] 演出Levelが波打っている（章扉Level3、4枚連続回避）
+- [ ] 再現不可能な可視化のみスナップショット、単純グラフはネイティブ再描画
+- [ ] v7/v8新機能の解釈を含む
+- [ ] 表紙にMission Objective、エグゼクティブサマリーにKPI
 
-## トークン効率の注意（ツァーリ・ボンバ対策）
-- サブエージェントを起動しない
-- slides_spec.md は1回だけ読み、以降は会話内で参照する
-- snapshots/ の画像は必要なものだけ読み込む
+## トークン効率（ツァーリ・ボンバ対策）
+- サブエージェント不使用。slide-patterns の各参照は1回だけ読み、以降は会話内で参照。
+- snapshots/ は埋め込むものだけ読み込む。
