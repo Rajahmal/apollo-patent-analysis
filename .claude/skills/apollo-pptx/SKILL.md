@@ -77,7 +77,10 @@ BORDER_GRAY: #D8DADD  (罫線)
 - **考察レイアウトの絶対ルール**: 章ごとに「**グラフ頁 → 直後に専用考察頁**」を必ず対にする。
   グラフ頁＝視覚＋結論＋要点3-5。本格考察（最低3段落・4層モデル）は専用考察頁
   （`add_insight_slide`）で展開。グラフ頁に段落を詰め込まない。
-- **考察ソース**: `reports/report.typ` があればその本格考察を**漏れなく転記**（情報を削らず頁を増やす）。
+- **既定はフル（最大）章構成**: 転記元/セッションにある章・図・分析・テーブル・シナリオ・戦略項目は
+  **省略せず全て頁化**する。トークン都合で間引かない（足りなければ `/compact` か分割実施を提案）。
+  ユーザーが明示的に「短縮版でよい」と言った場合のみ圧縮する。詳細は `slides_spec.md` §7.3。
+- **考察ソース**: `reports/report.typ`（やアップロードされたレポート文書）があればその本格考察を**漏れなく転記**（情報を削らず頁を増やす）。
   無ければ `capcom_schema/analysis/{deep_dive_guide,common_framework,cross_module,report_structure,quality_checklist,terminology}.md` と
   セッションの `prompts/`（**最低3件**）・`data/patents.csv` を読み、その場で Deep Dive級を生成。
 - **新スライド型**: `add_insight_slide`（4層考察頁）/ `add_patent_micro_slide`（代表特許）/
