@@ -393,15 +393,18 @@ def add_title_shape(slide, text, x=MARGIN_L, y=0.55, w=CONTENT_W, label=None):
         float: タイトル下端のy座標（サブメッセージの配置基準）
     """
     text_len = len(text)
-    if text_len <= 30:
+    if text_len <= 20:
         font_size = Pt(30)
         box_h = 0.70
-    elif text_len <= 50:
-        font_size = Pt(28)
-        box_h = 0.80
+    elif text_len <= 30:
+        font_size = Pt(27)
+        box_h = 0.78
+    elif text_len <= 44:
+        font_size = Pt(23)
+        box_h = 0.92
     else:
-        font_size = Pt(24)
-        box_h = 0.95
+        font_size = Pt(20)
+        box_h = 1.05
 
     # 左肩の短いクリムゾン EYEBROW 罫（≒0.40in 幅・1px厚）
     eb_y = y + 0.02
