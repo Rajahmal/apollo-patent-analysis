@@ -537,16 +537,70 @@ def add_bottom_bar_and_footer(slide, page_num=None):
 def disable_all_shadows(prs):
     """全スライド・全シェイプの継承シャドウを無効化する（オブジェクトに影を付けない方針）。
     **保存直前に必ず呼ぶこと**（prs.save の直前）。グループ内シェイプも再帰的に処理する。"""
+    def _kill(shp):
+        # 1) 継承シャドウ無効化
+        try:
+            shp.shadow.inherit = False
+        except Exception:
+            pass
+        # 2) spPr に空の <a:effectLst/> を強制し、プリセット影を完全に消す
+        try:
+            spPr = shp._element.spPr
+            if spPr is not None:
+                for el in spPr.findall(f'{{{A_NS}}}effectLst'):
+                    spPr.remove(el)
+                etree.SubElement(spPr, f'{{{A_NS}}}effectLst')
+        except Exception:
+            pass
+        # 3) スタイルの effectRef（テーマ由来の影）を idx=0 に落とす。
+        #    LibreOffice は effectLst だけでは effectRef の影を消さないことがある。
+        try:
+            P_NS = 'http://schemas.openxmlformats.org/presentationml/2006/main'
+            style = shp._element.find(f'{{{P_NS}}}style')
+            if style is not None:
+                eff = style.find(f'{{{A_NS}}}effectRef')
+                if eff is not None:
+                    eff.set('idx', '0')
+        except Exception:
+            pass
+
     def _walk(shapes):
         for shp in shapes:
-            try:
-                shp.shadow.inherit = False
-            except Exception:
-                pass
+            _kill(shp)
             if getattr(shp, "shape_type", None) == MSO_SHAPE_TYPE.GROUP:
                 _walk(shp.shapes)
     for slide in prs.slides:
         _walk(slide.shapes)
+
+
+def audit_deck(prs):
+    """生成後の自己診断（ハードエラーにはせず print 警告のみ）。
+    保存直前、disable_all_shadows の後に呼ぶ。レイアウト破綻・ページ番号欠損・
+    タイトルのみ頁などを検出して、人手の全枚確認を補助する。"""
+    issues = []
+    for i, sl in enumerate(prs.slides, 1):
+        texts = [sh.text_frame.text.strip() for sh in sl.shapes
+                 if sh.has_text_frame and sh.text_frame.text.strip()]
+        has_pic = any(getattr(sh, "shape_type", None) == MSO_SHAPE_TYPE.PICTURE
+                      for sh in sl.shapes)
+        if not texts and not has_pic:
+            issues.append(f"  スライド{i}: テキストも画像もなし（空白の可能性）")
+        elif len(texts) == 1 and len(texts[0]) < 5 and not has_pic:
+            issues.append(f"  スライド{i}: タイトルのみ（コンテンツ欠落の可能性）")
+        # ページ番号チェック: 右下に小さな数字テキストがあるか（表紙・章扉は除外）
+        nums = [sh for sh in sl.shapes if sh.has_text_frame
+                and sh.left is not None and sh.top is not None
+                and sh.left > Inches(11) and sh.top > Inches(6.5)
+                and sh.text_frame.text.strip().isdigit()]
+        if not nums and i > 1 and texts:
+            issues.append(f"  スライド{i}: ページ番号が見当たらない（章扉・表紙なら無視可）")
+    if issues:
+        print(f"[audit_deck] {len(issues)}件の注意:")
+        for w in issues:
+            print(w)
+    else:
+        print("[audit_deck] OK — 全スライド診断クリア")
+    return issues
 ```
 
 ### 画像・データソース・注釈
@@ -713,42 +767,60 @@ def add_highlight_circle(slide, x, y, w=0.5, h=0.5, color=None):
 
 ```python
 def add_title_slide(prs, title, subtitle, date, blank):
-    """表紙 — 黒背景 + クリムゾンの短い罫 + APOLLOロゴ"""
+    """表紙 — 黒背景 + クリムゾンの太罫 + 大判明朝タイトル（インパクト演出）
+
+    デッキの第一印象を決める頁。上半分を大きく空け、大判の明朝タイトルで
+    "結論の佇まい" を作る。アクセントは太いクリムゾン罫1点のみ。"""
     slide = prs.slides.add_slide(blank)
     # 黒背景（スライド全面）
     bg = slide.background.fill
     bg.solid()
     bg.fore_color.rgb = DARK_SECTION
 
-    # アクセントライン（左上・クリムゾン）
+    # "APOLLO" ロゴテキスト（左上に小さく・大きく字間を開ける運用）
+    logo = slide.shapes.add_textbox(Inches(1.2), Inches(1.05), Inches(5), Inches(0.5))
+    logo.text_frame.word_wrap = True
+    logo.text_frame.auto_size = MSO_AUTO_SIZE.NONE
+    set_text(logo.text_frame.paragraphs[0], "A P O L L O", Pt(14), RED_ON_DARK, bold=True)
+
+    # タイトル本文の文字数で大判サイズを段階選択（表紙のみ 30pt 上限を拡張）
+    tlen = len(title)
+    if tlen <= 16:
+        t_size = Pt(44); t_y = 2.55
+    elif tlen <= 28:
+        t_size = Pt(38); t_y = 2.45
+    else:
+        t_size = Pt(32); t_y = 2.35
+
+    # アクセント太罫（タイトル直上・クリムゾン。幅2.5in・高さ0.06in）
     line = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(1.2), Inches(1.8), Inches(2.0), Emu(38100)
+        MSO_SHAPE.RECTANGLE, Inches(1.22), Inches(t_y - 0.34), Inches(2.5), Inches(0.06)
     )
     line.fill.solid()
     line.fill.fore_color.rgb = ACCENT
     line.line.fill.background()
 
-    # "APOLLO" ロゴテキスト（左上に小さく・大きく字間を開ける運用）
-    logo = slide.shapes.add_textbox(Inches(1.2), Inches(1.2), Inches(4), Inches(0.5))
-    set_text(logo.text_frame.paragraphs[0], "A P O L L O", Pt(14), ACCENT, bold=True)
-
-    # タイトル（34pt White Bold・字間詰め）
-    txBox = slide.shapes.add_textbox(Inches(1.2), Inches(2.1), Inches(11), Inches(2))
+    # タイトル（大判 White Bold 明朝・字間詰め）
+    txBox = slide.shapes.add_textbox(Inches(1.2), Inches(t_y), Inches(11.2), Inches(2.4))
     tf = txBox.text_frame
     tf.word_wrap = True
-    set_text(tf.paragraphs[0], title, Pt(34), WHITE, bold=True, line_spacing=1.22, heading=True)
+    tf.auto_size = MSO_AUTO_SIZE.NONE
+    set_text(tf.paragraphs[0], title, t_size, WHITE, bold=True, line_spacing=1.18, heading=True)
 
-    # サブタイトル（淡いグレー）
-    txBox2 = slide.shapes.add_textbox(Inches(1.2), Inches(4.2), Inches(11), Inches(1))
-    set_text(txBox2.text_frame.paragraphs[0], subtitle, Pt(16), RGBColor(0xB8, 0xB8, 0xBA))
+    # サブタイトル・日付・出所は最下部にまとめて小さく（上部を大きく空ける）
+    txBox2 = slide.shapes.add_textbox(Inches(1.22), Inches(5.95), Inches(11), Inches(0.6))
+    txBox2.text_frame.word_wrap = True
+    txBox2.text_frame.auto_size = MSO_AUTO_SIZE.NONE
+    set_text(txBox2.text_frame.paragraphs[0], subtitle, Pt(15), RGBColor(0xB8, 0xB8, 0xBA), heading=True)
 
-    # 日付（より淡いグレー）
-    txBox3 = slide.shapes.add_textbox(Inches(1.2), Inches(5.5), Inches(11), Inches(0.5))
-    set_text(txBox3.text_frame.paragraphs[0], date, Pt(13), MEDIUM_GRAY)
+    txBox3 = slide.shapes.add_textbox(Inches(1.22), Inches(6.5), Inches(11), Inches(0.4))
+    txBox3.text_frame.word_wrap = True
+    txBox3.text_frame.auto_size = MSO_AUTO_SIZE.NONE
+    set_text(txBox3.text_frame.paragraphs[0], date, Pt(11), MEDIUM_GRAY)
 
     # ボトムライン（ACCENT、全幅）
     bot = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(0), Inches(7.1), Inches(13.33), Emu(38100)
+        MSO_SHAPE.RECTANGLE, Inches(0), Inches(7.18), Inches(13.33), Emu(38100)
     )
     bot.fill.solid()
     bot.fill.fore_color.rgb = ACCENT
@@ -762,42 +834,56 @@ def add_title_slide(prs, title, subtitle, date, blank):
 
 ```python
 def add_section_slide(prs, section_num, title, blank, subtitle=None):
-    """セクション区切り — 黒背景 + 巨大ゴースト番号(180pt)。色は黒地に馴染む墨で微調整。"""
+    """セクション区切り — 黒背景 + 超巨大ゴースト番号(280pt)でレイヤー感を出す。
+
+    章番号を画面いっぱいに大判化し、その上に章タイトルを重ねて
+    "舞台の幕間" の存在感を作る（インパクト演出）。色は黒地に馴染む墨。"""
     slide = prs.slides.add_slide(blank)
     # 黒背景（全面）
     bg = slide.background.fill
     bg.solid()
     bg.fore_color.rgb = DARK_SECTION
 
-    # ゴースト番号（180pt — 黒地よりわずかに明るい墨 GHOST_ON_DARK）
-    ghost = slide.shapes.add_textbox(Inches(0.5), Inches(1.0), Inches(5), Inches(3.5))
+    # 超巨大ゴースト番号（280pt — 画面右側に寄せて存在感を出す）
+    ghost = slide.shapes.add_textbox(Inches(6.7), Inches(0.2), Inches(7.0), Inches(6.5))
     tf_g = ghost.text_frame
+    tf_g.auto_size = MSO_AUTO_SIZE.NONE
     p_g = tf_g.paragraphs[0]
+    p_g.alignment = PP_ALIGN.RIGHT
     run_g = p_g.add_run()
     run_g.text = f"{section_num:02d}"
-    run_g.font.size = Pt(180)
+    run_g.font.size = Pt(280)
     run_g.font.color.rgb = GHOST_ON_DARK
     run_g.font.bold = True
     _apply_font(run_g, heading=True)
 
-    # 左アクセントバー（クリムゾン）
+    # 章ラベル（SECTION ##・赤・字間広め）
+    eb = slide.shapes.add_textbox(Inches(1.32), Inches(3.0), Inches(6), Inches(0.4))
+    eb.text_frame.word_wrap = True
+    eb.text_frame.auto_size = MSO_AUTO_SIZE.NONE
+    set_text(eb.text_frame.paragraphs[0], f"SECTION {section_num:02d}", Pt(13), RED_ON_DARK, bold=True, heading=True)
+
+    # 左アクセントの細い縦バー（章タイトル左・クリムゾン）
     bar = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(1.0), Inches(3.0), Emu(36576), Inches(2.0)
+        MSO_SHAPE.RECTANGLE, Inches(1.0), Inches(3.5), Emu(36576), Inches(1.5)
     )
     bar.fill.solid()
     bar.fill.fore_color.rgb = ACCENT
     bar.line.fill.background()
 
-    # セクションタイトル（30pt White Bold）
-    txBox = slide.shapes.add_textbox(Inches(1.3), Inches(3.2), Inches(11), Inches(1.5))
+    # セクションタイトル（34pt White Bold・番号の手前に重ねる）
+    txBox = slide.shapes.add_textbox(Inches(1.3), Inches(3.55), Inches(8.5), Inches(1.6))
     tf = txBox.text_frame
     tf.word_wrap = True
-    set_text(tf.paragraphs[0], title, Pt(30), WHITE, bold=True, line_spacing=1.25, heading=True)
+    tf.auto_size = MSO_AUTO_SIZE.NONE
+    set_text(tf.paragraphs[0], title, Pt(34), WHITE, bold=True, line_spacing=1.2, heading=True)
 
     # サブタイトル（省略可・淡グレー）
     if subtitle:
-        txBox2 = slide.shapes.add_textbox(Inches(1.3), Inches(4.8), Inches(11), Inches(0.8))
-        set_text(txBox2.text_frame.paragraphs[0], subtitle, Pt(16), RGBColor(0xB8, 0xB8, 0xBA), heading=True)
+        txBox2 = slide.shapes.add_textbox(Inches(1.3), Inches(5.15), Inches(8.5), Inches(0.8))
+        txBox2.text_frame.word_wrap = True
+        txBox2.text_frame.auto_size = MSO_AUTO_SIZE.NONE
+        set_text(txBox2.text_frame.paragraphs[0], subtitle, Pt(15), RGBColor(0xB8, 0xB8, 0xBA), heading=True)
 
     # ボトムライン
     bot = slide.shapes.add_shape(
@@ -989,6 +1075,8 @@ def add_cards_slide(prs, title, sub_message, cards, blank,
     ヘッダー: 色付き背景 + 白テキスト
     ボディ: LIGHT_GRAY背景 + DARK_GRAYテキスト
     """
+    if len(cards) > 4:
+        print(f"[WARN] add_cards_slide: cards={len(cards)} > 4。横幅が窮屈になるため2スライドに分割推奨")
     slide = prs.slides.add_slide(blank)
     sub_y = add_title_shape(slide, title)
     content_y = add_sub_message(slide, sub_message, y=sub_y)
@@ -1906,13 +1994,79 @@ def add_narrative_slide(prs, title, sub_message, paragraphs, blank,
     """テキスト主体 — エグゼクティブサマリーと結論にのみ使用
 
     全スライドの10%以下に制限すること。
+    bullets が少ないときは下半分が間延びしないよう、本文ブロックを
+    利用可能領域の上寄り〜中央に垂直センタリングする。
     """
     slide = prs.slides.add_slide(blank)
     sub_y = add_title_shape(slide, title)
     content_y = add_sub_message(slide, sub_message, y=sub_y) if sub_message else sub_y + 0.1
 
-    remaining_h = 6.5 - content_y
-    add_annotation_block(slide, paragraphs, 0.5, content_y, 12.3, remaining_h, font_size=16)
+    avail_h = 6.5 - content_y
+    # 段落数から概算高さを見積もり、少なければ垂直センタリングして間延びを防ぐ
+    # 16pt・行間1.5・1段落あたり概算0.55in（長文は折返しで増えるため上限はavail_h）
+    n_para = max(1, len(paragraphs))
+    est_h = min(avail_h, n_para * 0.55 + 0.2)
+    start_y = content_y + max(0.0, (avail_h - est_h) / 2.0)
+    add_annotation_block(slide, paragraphs, 0.5, start_y, 12.3, est_h, font_size=16)
+
+    if source:
+        add_source_label(slide, source)
+    add_bottom_bar_and_footer(slide, page_num)
+    return slide
+
+
+def add_chapter_intro_slide(prs, eyebrow, title, bullets, blank,
+                            source=None, page_num=None):
+    """章扉直後の章導入スライド — 左に大見出し / 右に「何を・なぜ」の箇条書き。
+
+    分析章の冒頭で "この章で何を・どんな意図で見るか" を提示する2カラム頁。
+    インパクト演出（柱0）と読みやすさの両立を狙い、左に明朝の大見出し、
+    右にGothicの箇条書きを置く。余白を活かして垂直センタリングする。
+
+    Args:
+        eyebrow: 章ラベル（例 "SECTION 03 / クラスタ動態"）
+        title:   大見出し（明朝・24pt前後）
+        bullets: ["この章で見ること1", "意図2", ...]（3-5項目推奨）
+    """
+    slide = prs.slides.add_slide(blank)
+
+    # 利用領域全体（タイトル帯は使わずフルに2カラム）に対し垂直センタリング
+    col_l_x = MARGIN_L
+    col_l_w = 4.6
+    col_r_x = MARGIN_L + col_l_w + 0.6
+    col_r_w = 13.33 - col_r_x - 0.7
+
+    n = max(1, len(bullets))
+    block_h = min(4.6, n * 0.52 + 0.35)
+    top_y = max(1.3, (7.0 - block_h) / 2.0)
+
+    # 左カラム: EYEBROW（赤）+ 大見出し（明朝）+ クリムゾン縦バー
+    bar = slide.shapes.add_shape(
+        MSO_SHAPE.RECTANGLE, Inches(col_l_x), Inches(top_y + 0.05),
+        Inches(0.05), Inches(block_h - 0.1)
+    )
+    bar.fill.solid(); bar.fill.fore_color.rgb = ACCENT; bar.line.fill.background()
+
+    eb = slide.shapes.add_textbox(Inches(col_l_x + 0.22), Inches(top_y), Inches(col_l_w), Inches(0.35))
+    eb.text_frame.word_wrap = True
+    eb.text_frame.auto_size = MSO_AUTO_SIZE.NONE
+    set_text(eb.text_frame.paragraphs[0], eyebrow, Pt(11), ACCENT, bold=True, heading=True)
+
+    hd = slide.shapes.add_textbox(Inches(col_l_x + 0.22), Inches(top_y + 0.42),
+                                  Inches(col_l_w), Inches(block_h - 0.42))
+    htf = hd.text_frame; htf.word_wrap = True; htf.auto_size = MSO_AUTO_SIZE.NONE
+    set_text(htf.paragraphs[0], title, Pt(24), INK, bold=True, line_spacing=1.22, heading=True)
+
+    # 右カラム: 箇条書き（Gothic・各項目に赤マーカー）
+    bd = slide.shapes.add_textbox(Inches(col_r_x), Inches(top_y), Inches(col_r_w), Inches(block_h))
+    btf = bd.text_frame; btf.word_wrap = True; btf.auto_size = MSO_AUTO_SIZE.NONE
+    for j, line in enumerate(bullets):
+        p = btf.paragraphs[0] if j == 0 else btf.add_paragraph()
+        p.space_after = Pt(8)
+        mk = p.add_run(); mk.text = "▪ "
+        mk.font.size = Pt(14); mk.font.color.rgb = ACCENT; mk.font.bold = True; _apply_font(mk)
+        add_rich_runs(p, line, base_size=Pt(14), base_color=DARK_GRAY,
+                      bold_color=INK, line_spacing=1.4)
 
     if source:
         add_source_label(slide, source)
@@ -2115,6 +2269,8 @@ def add_insight_slide(prs, title, sub_message, layers, blank,
       4層モデル（事実→解釈→洞察→示唆）推奨。2-4ブロック。
       各 body は段落（80-220字）。ラベルは赤の小見出し、本文は墨。
     """
+    if len(layers) > 4:
+        print(f"[WARN] add_insight_slide: layers={len(layers)} > 4。1ブロックが薄くなるため2スライドに分割推奨")
     slide = prs.slides.add_slide(blank)
     sub_y = add_title_shape(slide, title, label=label)
     content_y = add_sub_message(slide, sub_message, y=sub_y) if sub_message else sub_y + 0.1
@@ -2158,6 +2314,8 @@ def add_patent_micro_slide(prs, title, sub_message, patents, blank,
                "applicant":"出願人名", "note":"技術的意義・戦略的文脈（1-2文）"}]
       1頁あたり4-6件。レポート全体で代表特許は計15件以上（複数頁に分割可）。
     """
+    if len(patents) > 6:
+        print(f"[WARN] add_patent_micro_slide: patents={len(patents)} > 6。1件が窮屈になるため複数頁に分割推奨")
     slide = prs.slides.add_slide(blank)
     sub_y = add_title_shape(slide, title, label=label)
     content_y = add_sub_message(slide, sub_message, y=sub_y) if sub_message else sub_y + 0.1
@@ -2206,6 +2364,8 @@ def add_applicant_profile_slide(prs, title, sub_message, profiles, blank,
                          "競合比較・ポジション…", "戦略的含意…"]}]
       1頁あたり1-2社（5行を潰さないため）。レポート全体で5社以上。
     """
+    if len(profiles) > 2:
+        print(f"[WARN] add_applicant_profile_slide: profiles={len(profiles)} > 2。5行が潰れるため複数頁に分割推奨")
     slide = prs.slides.add_slide(blank)
     sub_y = add_title_shape(slide, title, label=label)
     content_y = add_sub_message(slide, sub_message, y=sub_y) if sub_message else sub_y + 0.1
@@ -2272,6 +2432,28 @@ def add_applicant_profile_slide(prs, title, sub_message, profiles, blank,
 | **フッター帯** | 廃止。帯・区切り線・"APOLLO" ワードマークは置かない |
 | **長文禁止** | 3行を超えるテキストブロックは、カード or 箇条書きに分割 |
 
+### N上限ガイド（1スライドあたりの要素数・破綻防止）
+
+データ量が多い場合は **スクリプト側で複数スライドに分割**する。各関数は上限超過時に
+`print()` で警告するのみ（**切り詰めない＝分析内容は欠落させない**。CAPCOMの網羅性を優先）。
+警告が出たら作者が複数スライドへ分割すること。
+
+| 関数 | 1頁の上限 | 超過時の推奨 |
+|------|----------|------------|
+| `add_cards_slide` | 4枚 | 2スライドに分割 |
+| `add_narrative_slide` | 6段落 | 章導入 + 詳細に分割 |
+| `add_insight_slide` | 4ブロック | 2スライドに分割 |
+| `add_patent_micro_slide` | 6件 | 複数頁に分割（全体で15件以上） |
+| `add_applicant_profile_slide` | 2社 | 複数頁に分割（5行を潰さない） |
+| `add_chapter_intro_slide` | 5項目 | 要点を絞る |
+| `add_table_slide` | 8行前後 | TOP-N + 残り集計行 |
+
+### 章導入スライド（章扉の直後・必須）
+
+各分析章は **章扉（`add_section_slide`）→ 章導入（`add_chapter_intro_slide`）→ 分析本体** の順で
+構成する。章導入は左に明朝の大見出し、右に「この章で何を・なぜ見るか」の箇条書きを置く2カラム頁。
+インパクト演出（章扉・表紙）と分析頁の抑制的トーンの橋渡しになる。
+
 ### レイアウトルール
 
 | ルール | 基準 |
@@ -2279,7 +2461,7 @@ def add_applicant_profile_slide(prs, title, sub_message, profiles, blank,
 | **余白禁止** | コンテンツはタイトル下端からページ下端近くまで使い切る |
 | **ページ番号** | 全スライド（表紙/章扉/クロージング除く）の右下にページ番号のみ |
 | **タイトル装飾** | 全幅下線は廃止。タイトル左肩に短いクリムゾン EYEBROW 罫 |
-| **セクション番号** | 章扉（黒背景）に巨大ゴースト番号（180pt、黒地に馴染む墨） |
+| **セクション番号** | 章扉（黒背景）に超巨大ゴースト番号（280pt、右寄せ、黒地に馴染む墨）。章タイトルを手前に重ねてレイヤー感を出す |
 | **背景基調** | コンテンツスライドは白背景。黒背景は表紙/章扉/クロージングのみ |
 
 ---
