@@ -260,43 +260,105 @@ def audit_deck(prs):
 
 
 # ===== スライドタイプ =====
-def add_title_slide(prs, title, subtitle, date, blank):
+def _track(run, spc):
+    """run にレタースペーシング（字間）を設定する。spc は 1/100pt 単位。"""
+    rPr = run._r.get_or_add_rPr()
+    rPr.set("spc", str(int(spc)))
+
+
+def add_title_slide(prs, title, subtitle, date, blank,
+                    kicker="TECHNOLOGY INTELLIGENCE REPORT"):
     slide = prs.slides.add_slide(blank)
     bg = slide.background.fill
     bg.solid()
     bg.fore_color.rgb = DARK_SECTION
-    logo = slide.shapes.add_textbox(Inches(1.2), Inches(1.05), Inches(5), Inches(0.5))
-    logo.text_frame.word_wrap = True
-    logo.text_frame.auto_size = MSO_AUTO_SIZE.NONE
-    set_text(logo.text_frame.paragraphs[0], "A P O L L O", Pt(14), RED_ON_DARK, bold=True)
+
+    # 巨大ゴースト・ワードマーク（背面・低コントラストで奥行きを作る）
+    ghost = slide.shapes.add_textbox(Inches(0.7), Inches(4.55), Inches(13.0), Inches(2.6))
+    gtf = ghost.text_frame
+    gtf.word_wrap = False
+    gtf.auto_size = MSO_AUTO_SIZE.NONE
+    gp = gtf.paragraphs[0]
+    grun = gp.add_run()
+    grun.text = "APOLLO"
+    grun.font.size = Pt(150)
+    grun.font.bold = True
+    grun.font.color.rgb = RGBColor(0x1B, 0x1B, 0x1F)  # 黒よりわずかに明るい墨
+    _apply_font(grun, heading=True)
+    _track(grun, 400)
+
+    # 左端フル丈クリムゾン・ストリップ（強いアンカー）
+    strip = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(0.30), Inches(7.5))
+    strip.fill.solid()
+    strip.fill.fore_color.rgb = ACCENT
+    strip.line.fill.background()
+
+    # キッカー（赤・字間広め・全大文字）
+    kick = slide.shapes.add_textbox(Inches(1.15), Inches(0.95), Inches(11), Inches(0.4))
+    kick.text_frame.word_wrap = True
+    kick.text_frame.auto_size = MSO_AUTO_SIZE.NONE
+    krun = kick.text_frame.paragraphs[0].add_run()
+    krun.text = kicker
+    krun.font.size = Pt(12)
+    krun.font.bold = True
+    krun.font.color.rgb = RED_ON_DARK
+    _apply_font(krun, heading=True)
+    _track(krun, 280)
+
+    # APOLLO ワードマーク（白・字間広め）
+    wm = slide.shapes.add_textbox(Inches(1.15), Inches(1.42), Inches(8), Inches(0.5))
+    wm.text_frame.word_wrap = True
+    wm.text_frame.auto_size = MSO_AUTO_SIZE.NONE
+    wrun = wm.text_frame.paragraphs[0].add_run()
+    wrun.text = "APOLLO"
+    wrun.font.size = Pt(20)
+    wrun.font.bold = True
+    wrun.font.color.rgb = WHITE
+    _apply_font(wrun, heading=True)
+    _track(wrun, 600)
+
     tlen = len(title)
     if tlen <= 16:
-        t_size, t_y = Pt(44), 2.55
+        t_size, t_y = Pt(48), 2.95
     elif tlen <= 28:
-        t_size, t_y = Pt(38), 2.45
+        t_size, t_y = Pt(40), 2.85
     else:
-        t_size, t_y = Pt(32), 2.35
-    line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(1.22), Inches(t_y - 0.34), Inches(2.5), Inches(0.06))
+        t_size, t_y = Pt(34), 2.75
+
+    # 太いクリムゾン罫（タイトル直上）
+    line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(1.18), Inches(t_y - 0.40), Inches(3.4), Inches(0.11))
     line.fill.solid()
     line.fill.fore_color.rgb = ACCENT
     line.line.fill.background()
-    txBox = slide.shapes.add_textbox(Inches(1.2), Inches(t_y), Inches(11.2), Inches(2.4))
+
+    # タイトル（大判 白 明朝）
+    txBox = slide.shapes.add_textbox(Inches(1.15), Inches(t_y), Inches(11.4), Inches(2.4))
     tf = txBox.text_frame
     tf.word_wrap = True
     tf.auto_size = MSO_AUTO_SIZE.NONE
-    set_text(tf.paragraphs[0], title, t_size, WHITE, bold=True, line_spacing=1.18, heading=True)
-    txBox2 = slide.shapes.add_textbox(Inches(1.22), Inches(5.95), Inches(11), Inches(0.6))
+    set_text(tf.paragraphs[0], title, t_size, WHITE, bold=True, line_spacing=1.16, heading=True)
+
+    # サブタイトル（淡グレー）
+    txBox2 = slide.shapes.add_textbox(Inches(1.18), Inches(5.55), Inches(11), Inches(0.6))
     txBox2.text_frame.word_wrap = True
     txBox2.text_frame.auto_size = MSO_AUTO_SIZE.NONE
-    set_text(txBox2.text_frame.paragraphs[0], subtitle, Pt(15), RGBColor(0xB8, 0xB8, 0xBA), heading=True)
-    txBox3 = slide.shapes.add_textbox(Inches(1.22), Inches(6.5), Inches(11), Inches(0.4))
-    txBox3.text_frame.word_wrap = True
-    txBox3.text_frame.auto_size = MSO_AUTO_SIZE.NONE
-    set_text(txBox3.text_frame.paragraphs[0], date, Pt(11), MEDIUM_GRAY)
-    bot = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(7.18), Inches(13.33), Emu(38100))
-    bot.fill.solid()
-    bot.fill.fore_color.rgb = ACCENT
-    bot.line.fill.background()
+    set_text(txBox2.text_frame.paragraphs[0], subtitle, Pt(15), RGBColor(0xC2, 0xC2, 0xC6), heading=True)
+
+    # 下部メタデータ帯（クリムゾンの細帯に白文字を反転で乗せる）
+    band = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(6.78), Inches(13.33), Inches(0.46))
+    band.fill.solid()
+    band.fill.fore_color.rgb = ACCENT
+    band.line.fill.background()
+    meta = slide.shapes.add_textbox(Inches(1.15), Inches(6.85), Inches(11.0), Inches(0.34))
+    meta.text_frame.word_wrap = True
+    meta.text_frame.auto_size = MSO_AUTO_SIZE.NONE
+    mrun = meta.text_frame.paragraphs[0].add_run()
+    mrun.text = date
+    mrun.font.size = Pt(11)
+    mrun.font.bold = True
+    mrun.font.color.rgb = WHITE
+    _apply_font(mrun, heading=True)
+    _track(mrun, 120)
     return slide
 
 
@@ -305,35 +367,58 @@ def add_section_slide(prs, section_num, title, blank, subtitle=None):
     bg = slide.background.fill
     bg.solid()
     bg.fore_color.rgb = DARK_SECTION
-    ghost = slide.shapes.add_textbox(Inches(6.7), Inches(0.2), Inches(7.0), Inches(6.5))
+
+    # 巨大ゴースト番号（背面・右側にフル表示。クリップせず奥行きの主役にする）
+    ghost = slide.shapes.add_textbox(Inches(5.2), Inches(1.05), Inches(7.6), Inches(5.4))
     tf_g = ghost.text_frame
+    tf_g.word_wrap = False
     tf_g.auto_size = MSO_AUTO_SIZE.NONE
     p_g = tf_g.paragraphs[0]
     p_g.alignment = PP_ALIGN.RIGHT
     run_g = p_g.add_run()
     run_g.text = f"{section_num:02d}"
-    run_g.font.size = Pt(280)
+    run_g.font.size = Pt(300)
     run_g.font.color.rgb = GHOST_ON_DARK
     run_g.font.bold = True
     _apply_font(run_g, heading=True)
-    eb = slide.shapes.add_textbox(Inches(1.32), Inches(3.0), Inches(6), Inches(0.4))
+
+    # 左端フル丈クリムゾン・ストリップ（表紙と統一）
+    strip = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(0.30), Inches(7.5))
+    strip.fill.solid()
+    strip.fill.fore_color.rgb = ACCENT
+    strip.line.fill.background()
+
+    # SECTION ラベル（赤・字間広め）
+    eb = slide.shapes.add_textbox(Inches(1.15), Inches(2.75), Inches(6), Inches(0.4))
     eb.text_frame.word_wrap = True
     eb.text_frame.auto_size = MSO_AUTO_SIZE.NONE
-    set_text(eb.text_frame.paragraphs[0], f"SECTION {section_num:02d}", Pt(13), RED_ON_DARK, bold=True, heading=True)
-    bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(1.0), Inches(3.5), Emu(36576), Inches(1.5))
-    bar.fill.solid()
-    bar.fill.fore_color.rgb = ACCENT
-    bar.line.fill.background()
-    txBox = slide.shapes.add_textbox(Inches(1.3), Inches(3.55), Inches(8.5), Inches(1.6))
+    erun = eb.text_frame.paragraphs[0].add_run()
+    erun.text = f"SECTION {section_num:02d}"
+    erun.font.size = Pt(15)
+    erun.font.bold = True
+    erun.font.color.rgb = RED_ON_DARK
+    _apply_font(erun, heading=True)
+    _track(erun, 260)
+
+    # 太いクリムゾン罫
+    line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(1.18), Inches(3.32), Inches(2.8), Inches(0.10))
+    line.fill.solid()
+    line.fill.fore_color.rgb = ACCENT
+    line.line.fill.background()
+
+    # セクションタイトル（大判 白 明朝・番号の手前に重ねる）
+    txBox = slide.shapes.add_textbox(Inches(1.15), Inches(3.55), Inches(8.0), Inches(1.7))
     tf = txBox.text_frame
     tf.word_wrap = True
     tf.auto_size = MSO_AUTO_SIZE.NONE
-    set_text(tf.paragraphs[0], title, Pt(34), WHITE, bold=True, line_spacing=1.2, heading=True)
+    set_text(tf.paragraphs[0], title, Pt(40), WHITE, bold=True, line_spacing=1.15, heading=True)
+
     if subtitle:
-        txBox2 = slide.shapes.add_textbox(Inches(1.3), Inches(5.15), Inches(8.5), Inches(0.8))
+        txBox2 = slide.shapes.add_textbox(Inches(1.18), Inches(5.35), Inches(7.6), Inches(0.8))
         txBox2.text_frame.word_wrap = True
         txBox2.text_frame.auto_size = MSO_AUTO_SIZE.NONE
-        set_text(txBox2.text_frame.paragraphs[0], subtitle, Pt(15), RGBColor(0xB8, 0xB8, 0xBA), heading=True)
+        set_text(txBox2.text_frame.paragraphs[0], subtitle, Pt(15), RGBColor(0xC2, 0xC2, 0xC6), heading=True)
+
     bot = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(7.1), Inches(13.33), Emu(27432))
     bot.fill.solid()
     bot.fill.fore_color.rgb = ACCENT
