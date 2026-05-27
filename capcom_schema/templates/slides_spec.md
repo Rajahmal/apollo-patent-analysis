@@ -171,10 +171,10 @@ add_sub_message(slide, "...", y=0.90)
 
 | 要素 | サイズ | 行間 | 字間 | 色 |
 |------|-------|------|------|----|
-| 表紙タイトル | **34pt Bold** | 1.22x | 詰め | White（黒地） |
+| 表紙タイトル | **34-48pt Bold**（文字数で段階） | 1.16x | 詰め | White（黒地） |
 | スライドタイトル | **29-30pt Bold** | 1.22x | 詰め(-0.04em) | INK、`～`副題はACCENT可 |
 | セクションタイトル | **30pt Bold** | 1.25x | 詰め(-0.035em) | White（黒地） |
-| ゴースト番号 | **180pt Bold** | — | — | GHOST_ON_DARK（黒地上） |
+| ゴースト番号 | **300pt Bold**（章扉・見切れさせない） | — | 標準 | GHOST_ON_DARK（黒地上） |
 | ラベル(EYEBROW) | **9-10pt** Heavy | 1.2x | 大きく開く(+0.22em)・全大文字 | ACCENT |
 | ■サブメッセージ | **15pt** | 1.5x | 標準 | INK（淡グレー面） |
 | チャート小見出し | **14pt Bold** | 1.2x | 標準 | INK |
@@ -340,6 +340,14 @@ def _apply_kinsoku(paragraph):
     pPr = paragraph._p.get_or_add_pPr()
     pPr.set('eaLnBrk', '1')
     pPr.set('hangingPunct', '1')
+
+
+def _track(run, spc):
+    """run にレタースペーシング（字間）を設定する。spc は 1/100pt 単位。
+    キッカー・ワードマーク・SECTIONラベル等を「大きく開いた字間」で締める用途。
+    （原則7: 階層差はサイズより太さ・字間・色でつける）"""
+    rPr = run._r.get_or_add_rPr()
+    rPr.set('spc', str(int(spc)))
 ```
 
 ### テキストエンジン
@@ -766,124 +774,166 @@ def add_highlight_circle(slide, x, y, w=0.5, h=0.5, color=None):
 黒背景（DARK_SECTION）に白テキスト。クリムゾン単一アクセント。
 
 ```python
-def add_title_slide(prs, title, subtitle, date, blank):
-    """表紙 — 黒背景 + クリムゾンの太罫 + 大判明朝タイトル（インパクト演出）
+def add_title_slide(prs, title, subtitle, date, blank,
+                    kicker="TECHNOLOGY INTELLIGENCE REPORT"):
+    """表紙 — 黒背景の大胆なエディトリアル演出（デッキの第一印象を決める頁）
 
-    デッキの第一印象を決める頁。上半分を大きく空け、大判の明朝タイトルで
-    "結論の佇まい" を作る。アクセントは太いクリムゾン罫1点のみ。"""
+    構成（柱0「インパクト演出」）:
+      - 左端フル丈クリムゾン・ストリップ（強いアンカー。章扉と統一）
+      - 背面に巨大ゴースト・ワードマーク "APOLLO"（低コントラストで奥行き）
+      - キッカー（赤・字間広め・全大文字）+ APOLLO ワードマーク（白・字間広め）
+      - タイトル直上の太いクリムゾン罫 + 大判明朝タイトル（最大48pt）
+      - 下部クリムゾン帯に日付を白文字反転で乗せる
+    kicker はレポート種別ラベル（例 "PATENT LANDSCAPE REPORT"）。"""
     slide = prs.slides.add_slide(blank)
-    # 黒背景（スライド全面）
     bg = slide.background.fill
     bg.solid()
     bg.fore_color.rgb = DARK_SECTION
 
-    # "APOLLO" ロゴテキスト（左上に小さく・大きく字間を開ける運用）
-    logo = slide.shapes.add_textbox(Inches(1.2), Inches(1.05), Inches(5), Inches(0.5))
-    logo.text_frame.word_wrap = True
-    logo.text_frame.auto_size = MSO_AUTO_SIZE.NONE
-    set_text(logo.text_frame.paragraphs[0], "A P O L L O", Pt(14), RED_ON_DARK, bold=True)
+    # 巨大ゴースト・ワードマーク（背面・低コントラストで奥行きを作る）
+    ghost = slide.shapes.add_textbox(Inches(0.7), Inches(4.55), Inches(13.0), Inches(2.6))
+    gtf = ghost.text_frame
+    gtf.word_wrap = False
+    gtf.auto_size = MSO_AUTO_SIZE.NONE
+    grun = gtf.paragraphs[0].add_run()
+    grun.text = "APOLLO"
+    grun.font.size = Pt(150)
+    grun.font.bold = True
+    grun.font.color.rgb = RGBColor(0x1B, 0x1B, 0x1F)  # 黒よりわずかに明るい墨
+    _apply_font(grun, heading=True)
+    _track(grun, 400)
 
-    # タイトル本文の文字数で大判サイズを段階選択（表紙のみ 30pt 上限を拡張）
+    # 左端フル丈クリムゾン・ストリップ
+    strip = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(0.30), Inches(7.5))
+    strip.fill.solid()
+    strip.fill.fore_color.rgb = ACCENT
+    strip.line.fill.background()
+
+    # キッカー（赤・字間広め・全大文字）
+    kick = slide.shapes.add_textbox(Inches(1.15), Inches(0.95), Inches(11), Inches(0.4))
+    kick.text_frame.word_wrap = True
+    kick.text_frame.auto_size = MSO_AUTO_SIZE.NONE
+    krun = kick.text_frame.paragraphs[0].add_run()
+    krun.text = kicker
+    krun.font.size = Pt(12); krun.font.bold = True; krun.font.color.rgb = RED_ON_DARK
+    _apply_font(krun, heading=True); _track(krun, 280)
+
+    # APOLLO ワードマーク（白・字間広め）
+    wm = slide.shapes.add_textbox(Inches(1.15), Inches(1.42), Inches(8), Inches(0.5))
+    wm.text_frame.word_wrap = True
+    wm.text_frame.auto_size = MSO_AUTO_SIZE.NONE
+    wrun = wm.text_frame.paragraphs[0].add_run()
+    wrun.text = "APOLLO"
+    wrun.font.size = Pt(20); wrun.font.bold = True; wrun.font.color.rgb = WHITE
+    _apply_font(wrun, heading=True); _track(wrun, 600)
+
+    # タイトル長で大判サイズを段階選択
     tlen = len(title)
     if tlen <= 16:
-        t_size = Pt(44); t_y = 2.55
+        t_size, t_y = Pt(48), 2.95
     elif tlen <= 28:
-        t_size = Pt(38); t_y = 2.45
+        t_size, t_y = Pt(40), 2.85
     else:
-        t_size = Pt(32); t_y = 2.35
+        t_size, t_y = Pt(34), 2.75
 
-    # アクセント太罫（タイトル直上・クリムゾン。幅2.5in・高さ0.06in）
-    line = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(1.22), Inches(t_y - 0.34), Inches(2.5), Inches(0.06)
-    )
+    # 太いクリムゾン罫（タイトル直上）
+    line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(1.18), Inches(t_y - 0.40), Inches(3.4), Inches(0.11))
     line.fill.solid()
     line.fill.fore_color.rgb = ACCENT
     line.line.fill.background()
 
-    # タイトル（大判 White Bold 明朝・字間詰め）
-    txBox = slide.shapes.add_textbox(Inches(1.2), Inches(t_y), Inches(11.2), Inches(2.4))
+    # タイトル（大判 White Bold 明朝）
+    txBox = slide.shapes.add_textbox(Inches(1.15), Inches(t_y), Inches(11.4), Inches(2.4))
     tf = txBox.text_frame
     tf.word_wrap = True
     tf.auto_size = MSO_AUTO_SIZE.NONE
-    set_text(tf.paragraphs[0], title, t_size, WHITE, bold=True, line_spacing=1.18, heading=True)
+    set_text(tf.paragraphs[0], title, t_size, WHITE, bold=True, line_spacing=1.16, heading=True)
 
-    # サブタイトル・日付・出所は最下部にまとめて小さく（上部を大きく空ける）
-    txBox2 = slide.shapes.add_textbox(Inches(1.22), Inches(5.95), Inches(11), Inches(0.6))
+    # サブタイトル（淡グレー）
+    txBox2 = slide.shapes.add_textbox(Inches(1.18), Inches(5.55), Inches(11), Inches(0.6))
     txBox2.text_frame.word_wrap = True
     txBox2.text_frame.auto_size = MSO_AUTO_SIZE.NONE
-    set_text(txBox2.text_frame.paragraphs[0], subtitle, Pt(15), RGBColor(0xB8, 0xB8, 0xBA), heading=True)
+    set_text(txBox2.text_frame.paragraphs[0], subtitle, Pt(15), RGBColor(0xC2, 0xC2, 0xC6), heading=True)
 
-    txBox3 = slide.shapes.add_textbox(Inches(1.22), Inches(6.5), Inches(11), Inches(0.4))
-    txBox3.text_frame.word_wrap = True
-    txBox3.text_frame.auto_size = MSO_AUTO_SIZE.NONE
-    set_text(txBox3.text_frame.paragraphs[0], date, Pt(11), MEDIUM_GRAY)
-
-    # ボトムライン（ACCENT、全幅）
-    bot = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(0), Inches(7.18), Inches(13.33), Emu(38100)
-    )
-    bot.fill.solid()
-    bot.fill.fore_color.rgb = ACCENT
-    bot.line.fill.background()
+    # 下部メタデータ帯（クリムゾン帯に白文字反転）
+    band = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(6.78), Inches(13.33), Inches(0.46))
+    band.fill.solid()
+    band.fill.fore_color.rgb = ACCENT
+    band.line.fill.background()
+    meta = slide.shapes.add_textbox(Inches(1.15), Inches(6.85), Inches(11.0), Inches(0.34))
+    meta.text_frame.word_wrap = True
+    meta.text_frame.auto_size = MSO_AUTO_SIZE.NONE
+    mrun = meta.text_frame.paragraphs[0].add_run()
+    mrun.text = date
+    mrun.font.size = Pt(11); mrun.font.bold = True; mrun.font.color.rgb = WHITE
+    _apply_font(mrun, heading=True); _track(mrun, 120)
     return slide
 ```
 
 ### 3.2 セクション区切り（ゴースト番号付き）
 
-**黒背景**（DARK_SECTION）。巨大なゴースト番号（黒よりわずかに明るい墨）+ 白テキストタイトル。
+**黒背景**（DARK_SECTION）。右側に見切れさせない巨大ゴースト番号（300pt・黒よりわずかに明るい墨）+ 表紙と統一の左端クリムゾン・ストリップ + 白テキストタイトル。
 
 ```python
 def add_section_slide(prs, section_num, title, blank, subtitle=None):
-    """セクション区切り — 黒背景 + 超巨大ゴースト番号(280pt)でレイヤー感を出す。
+    """セクション区切り — 黒背景 + 見切れない巨大ゴースト番号(300pt)でレイヤー感を出す。
 
-    章番号を画面いっぱいに大判化し、その上に章タイトルを重ねて
-    "舞台の幕間" の存在感を作る（インパクト演出）。色は黒地に馴染む墨。"""
+    章番号を右側にフル表示の背景として置き（クリップさせない）、その手前に
+    章タイトルを重ねて "舞台の幕間" の存在感を作る（柱0「インパクト演出」）。
+    表紙と同じ左端クリムゾン・ストリップでデッキの一貫性を持たせる。"""
     slide = prs.slides.add_slide(blank)
-    # 黒背景（全面）
     bg = slide.background.fill
     bg.solid()
     bg.fore_color.rgb = DARK_SECTION
 
-    # 超巨大ゴースト番号（280pt — 画面右側に寄せて存在感を出す）
-    ghost = slide.shapes.add_textbox(Inches(6.7), Inches(0.2), Inches(7.0), Inches(6.5))
+    # 巨大ゴースト番号（背面・右側にフル表示。見切れさせず奥行きの主役にする）
+    ghost = slide.shapes.add_textbox(Inches(5.2), Inches(1.05), Inches(7.6), Inches(5.4))
     tf_g = ghost.text_frame
+    tf_g.word_wrap = False
     tf_g.auto_size = MSO_AUTO_SIZE.NONE
     p_g = tf_g.paragraphs[0]
     p_g.alignment = PP_ALIGN.RIGHT
     run_g = p_g.add_run()
     run_g.text = f"{section_num:02d}"
-    run_g.font.size = Pt(280)
+    run_g.font.size = Pt(300)
     run_g.font.color.rgb = GHOST_ON_DARK
     run_g.font.bold = True
     _apply_font(run_g, heading=True)
 
-    # 章ラベル（SECTION ##・赤・字間広め）
-    eb = slide.shapes.add_textbox(Inches(1.32), Inches(3.0), Inches(6), Inches(0.4))
+    # 左端フル丈クリムゾン・ストリップ（表紙と統一）
+    strip = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(0.30), Inches(7.5))
+    strip.fill.solid()
+    strip.fill.fore_color.rgb = ACCENT
+    strip.line.fill.background()
+
+    # SECTION ラベル（赤・字間広め）
+    eb = slide.shapes.add_textbox(Inches(1.15), Inches(2.75), Inches(6), Inches(0.4))
     eb.text_frame.word_wrap = True
     eb.text_frame.auto_size = MSO_AUTO_SIZE.NONE
-    set_text(eb.text_frame.paragraphs[0], f"SECTION {section_num:02d}", Pt(13), RED_ON_DARK, bold=True, heading=True)
+    erun = eb.text_frame.paragraphs[0].add_run()
+    erun.text = f"SECTION {section_num:02d}"
+    erun.font.size = Pt(15); erun.font.bold = True; erun.font.color.rgb = RED_ON_DARK
+    _apply_font(erun, heading=True); _track(erun, 260)
 
-    # 左アクセントの細い縦バー（章タイトル左・クリムゾン）
-    bar = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(1.0), Inches(3.5), Emu(36576), Inches(1.5)
-    )
-    bar.fill.solid()
-    bar.fill.fore_color.rgb = ACCENT
-    bar.line.fill.background()
+    # 太いクリムゾン罫
+    line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(1.18), Inches(3.32), Inches(2.8), Inches(0.10))
+    line.fill.solid()
+    line.fill.fore_color.rgb = ACCENT
+    line.line.fill.background()
 
-    # セクションタイトル（34pt White Bold・番号の手前に重ねる）
-    txBox = slide.shapes.add_textbox(Inches(1.3), Inches(3.55), Inches(8.5), Inches(1.6))
+    # セクションタイトル（40pt White Bold 明朝・番号の手前に重ねる）
+    txBox = slide.shapes.add_textbox(Inches(1.15), Inches(3.55), Inches(8.0), Inches(1.7))
     tf = txBox.text_frame
     tf.word_wrap = True
     tf.auto_size = MSO_AUTO_SIZE.NONE
-    set_text(tf.paragraphs[0], title, Pt(34), WHITE, bold=True, line_spacing=1.2, heading=True)
+    set_text(tf.paragraphs[0], title, Pt(40), WHITE, bold=True, line_spacing=1.15, heading=True)
 
     # サブタイトル（省略可・淡グレー）
     if subtitle:
-        txBox2 = slide.shapes.add_textbox(Inches(1.3), Inches(5.15), Inches(8.5), Inches(0.8))
+        txBox2 = slide.shapes.add_textbox(Inches(1.18), Inches(5.35), Inches(7.6), Inches(0.8))
         txBox2.text_frame.word_wrap = True
         txBox2.text_frame.auto_size = MSO_AUTO_SIZE.NONE
-        set_text(txBox2.text_frame.paragraphs[0], subtitle, Pt(15), RGBColor(0xB8, 0xB8, 0xBA), heading=True)
+        set_text(txBox2.text_frame.paragraphs[0], subtitle, Pt(15), RGBColor(0xC2, 0xC2, 0xC6), heading=True)
 
     # ボトムライン
     bot = slide.shapes.add_shape(
@@ -2461,7 +2511,7 @@ def add_applicant_profile_slide(prs, title, sub_message, profiles, blank,
 | **余白禁止** | コンテンツはタイトル下端からページ下端近くまで使い切る |
 | **ページ番号** | 全スライド（表紙/章扉/クロージング除く）の右下にページ番号のみ |
 | **タイトル装飾** | 全幅下線は廃止。タイトル左肩に短いクリムゾン EYEBROW 罫 |
-| **セクション番号** | 章扉（黒背景）に超巨大ゴースト番号（280pt、右寄せ、黒地に馴染む墨）。章タイトルを手前に重ねてレイヤー感を出す |
+| **セクション番号** | 章扉（黒背景）に見切れさせない巨大ゴースト番号（300pt、右寄せフル表示、黒地に馴染む墨）。章タイトルを手前に重ねてレイヤー感を出す。表紙と同じ左端クリムゾン・ストリップで統一 |
 | **背景基調** | コンテンツスライドは白背景。黒背景は表紙/章扉/クロージングのみ |
 
 ---
