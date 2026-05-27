@@ -1,0 +1,41 @@
+{
+  "phase_a_version": "v8.0",
+  "phase_a_completed_at": "2026-05-27T13:10:00",
+  "population_type": {
+    "code": "A'",
+    "label": "技術領域型",
+    "reasoning": "C01F11（炭酸カルシウム類）に特化したFI分類検索。上位10社シェア約29.6%、出願人HHI=0.063の分散型・競争的構造。業界全体ではなく『炭酸カルシウム技術領域』が対象。ユーザー確認済み。",
+    "confirmed_by_user": true
+  },
+  "mission_digest": "炭酸カルシウム関連技術についてJ-PlatPat FI検索で抽出された1,959件を対象に、近年（特に直近5年）の注目・成長領域を客観的に特定する。",
+  "data_constraints": {
+    "no_abstract_text": true,
+    "note": "J-PlatPatデータのため要約（長文テキスト）が存在しない。統計・傾向（件数・クラスタ・出願人・年分布）ベースで分析する。請求項テキストも限定的。",
+    "focus_period": "直近5年（2021-2026）を重点的に分析する"
+  },
+  "query_logic_structure": {
+    "status": "query_logic未指定のためSTOP-GATE A省略（ユーザーに報告済み）"
+  },
+  "intent_logic_divergences": [],
+  "data_level2_warnings": [],
+  "sub_questions": [
+    {"id": "SQ1", "content": "直近5年で最も注目（急成長）している技術領域はどこか", "keywords": ["二酸化炭素", "CO2固定化", "成長", "直近"]},
+    {"id": "SQ2", "content": "本母集団で成長リーダー／新興と判定される技術クラスタの構造", "keywords": ["成長リーダー", "新興クラスタ", "動態"]},
+    {"id": "SQ3", "content": "注目領域に注力している主要出願人とその戦略", "keywords": ["住友大阪セメント", "神島化学工業", "出願人", "戦略"]},
+    {"id": "SQ4", "content": "歴史的に成熟・衰退している領域と注目領域の対比", "keywords": ["成熟", "衰退", "顔料", "製紙"]},
+    {"id": "SQ5", "content": "本母集団における産学連携・新規参入の兆候", "keywords": ["大学", "産学連携", "新規参入"]}
+  ],
+  "nebula_strategy": {
+    "data_available": true,
+    "selected_mode": "execute",
+    "user_confirmed": true,
+    "web_coverage_categories": [],
+    "notes": "特許ハイプサイクル（特許トレンド）データのみ存在。学術・ニューストレンドは未実行。ユーザーは『特許ハイプサイクルのみで環境分析』を選択。Web調査補完は必須化しない（任意）。"
+  },
+  "executive_summary_flag": false,
+  "forbidden_expressions": [
+    "業界では", "業界全体", "市場では", "市場全体", "産業では", "全体として（単独）",
+    "業界の標準", "主流技術", "業界シェア", "市場構造", "市場は寡占"
+  ],
+  "user_notes": "別冊不要（本編のみ）。J-PlatPatのため要約テキストなし→統計・傾向メイン。直近5年を詳しく。タイプA'で進行。NEBULAは特許ハイプサイクルのみ。"
+}

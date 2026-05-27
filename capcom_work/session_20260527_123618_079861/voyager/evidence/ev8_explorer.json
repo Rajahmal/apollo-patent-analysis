@@ -1,0 +1,10 @@
+{
+  "id": 8,
+  "module": "Explorer",
+  "title": "Tornado Chart (ＴＢＭ vs 住友大阪セメント)",
+  "description": "キーワード出現頻度の直接比較。左右への突出が各社の特徴を示す。",
+  "images": [
+    "snapshots/voyager_ev8_0.png"
+  ],
+  "data_summary": "  Keyword  My Abs  Competitor Count\n    溶出低減材       0                 3\n   品質管理方法       0                 3\n     製造装置       2                 1\n   製造システム       0                 4\n炭酸カルシウム粒子       5                 0\n    二酸化炭素       0                 6\n     隠ぺい性       0                 6\n  炭酸カルシウム       0                 8\n     製造方法       5                17"
+}

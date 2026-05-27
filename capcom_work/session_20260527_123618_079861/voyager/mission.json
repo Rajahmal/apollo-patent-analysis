@@ -1,0 +1,108 @@
+{
+  "mission_objective": "最近の注目領域について客観的な分析",
+  "timestamp": "2026-05-27T12:53:59.085418",
+  "evidence_count": 10,
+  "evidence_list": [
+    {
+      "id": 1,
+      "module": "ATLAS",
+      "title": "出願件数推移 (1911-2026)",
+      "file": "evidence/ev1_atlas.json",
+      "images": [
+        "snapshots/voyager_ev1_0.png"
+      ]
+    },
+    {
+      "id": 2,
+      "module": "ATLAS",
+      "title": "件数推移 (折れ線)",
+      "file": "evidence/ev2_atlas.json",
+      "images": [
+        "snapshots/voyager_ev2_0.png"
+      ]
+    },
+    {
+      "id": 3,
+      "module": "ATLAS",
+      "title": "主要出願人ランキング (1911-2026)",
+      "file": "evidence/ev3_atlas.json",
+      "images": [
+        "snapshots/voyager_ev3_0.png"
+      ]
+    },
+    {
+      "id": 4,
+      "module": "ATLAS",
+      "title": "技術ライフサイクルマップ",
+      "file": "evidence/ev4_atlas.json",
+      "images": [
+        "snapshots/voyager_ev4_0.png"
+      ]
+    },
+    {
+      "id": 5,
+      "module": "CORE",
+      "title": "CORE Map (全体 (Overall)): 技術分類 vs 課題分類",
+      "file": "evidence/ev5_core.json",
+      "images": [
+        "snapshots/voyager_ev5_0.png"
+      ]
+    },
+    {
+      "id": 6,
+      "module": "Saturn V",
+      "title": "Saturn V: Landscape Map ((全期間) (1959件))",
+      "file": "evidence/ev6_saturn_v.json",
+      "images": [
+        "snapshots/voyager_ev6_0.png"
+      ]
+    },
+    {
+      "id": 7,
+      "module": "Saturn V",
+      "title": "Saturn V: Drilldown - [9] 二酸化炭素, 製造, 炭酸ガス",
+      "file": "evidence/ev7_saturn_v.json",
+      "images": [
+        "snapshots/voyager_ev7_0.png"
+      ]
+    },
+    {
+      "id": 8,
+      "module": "Explorer",
+      "title": "Tornado Chart (ＴＢＭ vs 住友大阪セメント)",
+      "file": "evidence/ev8_explorer.json",
+      "images": [
+        "snapshots/voyager_ev8_0.png"
+      ]
+    },
+    {
+      "id": 9,
+      "module": "NEBULA",
+      "title": "NEBULA: Hype Cycle (Trends)",
+      "file": "evidence/ev9_nebula.json",
+      "images": [
+        "snapshots/voyager_ev9_0.png"
+      ]
+    },
+    {
+      "id": 10,
+      "module": "NEBULA",
+      "title": "NEBULA: 技術トレンド構造 (特許)",
+      "file": "evidence/ev10_nebula.json",
+      "images": [
+        "snapshots/voyager_ev10_0.png"
+      ]
+    }
+  ],
+  "available_data_files": [
+    "atlas_statistics.json",
+    "core_classification.json",
+    "explorer_global_network.json",
+    "explorer_global_wordcloud.json",
+    "mega_momentum.json",
+    "nebula_hype_cycle.json",
+    "patents.csv",
+    "saturnv_clusters.json",
+    "saturnv_drilldown.json"
+  ]
+}

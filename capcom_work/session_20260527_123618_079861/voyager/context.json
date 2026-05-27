@@ -1,0 +1,55 @@
+{
+  "session_id": "session_20260527_123618_079861",
+  "dataset": {
+    "total_patents": 1959,
+    "period": "1911-2026",
+    "column_mapping": {
+      "title": "発明の名称",
+      "abstract": "要約",
+      "claim": "請求項",
+      "app_num": "出願番号",
+      "date": "出願日",
+      "applicant": "出願人/権利者",
+      "ipc": "FI",
+      "pub_number": "公開番号",
+      "inventor": null,
+      "fterm": null,
+      "status": "ステージ"
+    },
+    "preprocessing": "patiroha + SBERT(paraphrase-multilingual-MiniLM-L12-v2)",
+    "tfidf_vocab_size": 127,
+    "stopwords_count": 791
+  },
+  "modules_used": [
+    "ATLAS",
+    "CORE",
+    "Explorer",
+    "NEBULA",
+    "Saturn V"
+  ],
+  "available_data_files": {
+    "atlas_statistics.json": "ATLAS マクロ統計（時系列・ランキング・HHI/Entropy/Gini）",
+    "core_classification.json": "CORE ルールベース分類結果",
+    "explorer_global_network.json": "Explorer グローバル共起ネットワーク",
+    "explorer_global_wordcloud.json": "explorer_global_wordcloud.json",
+    "mega_momentum.json": "MEGA 動態分析（CAGR×活動量4象限）",
+    "nebula_hype_cycle.json": "NEBULA ハイプサイクル分析",
+    "patents.csv": "全特許データ（タイトル・要約・出願人・クラスタ情報等）",
+    "saturnv_clusters.json": "Saturn V AIクラスタリング結果（ノイズ分析・動態マップ含む）",
+    "saturnv_drilldown.json": "Saturn V ドリルダウン分析（PROBE）"
+  },
+  "population_meta": {
+    "query_intent": "J-platpatにてFI検索1959件",
+    "query_logic": "",
+    "coverage_years": "",
+    "database_name": ""
+  },
+  "capcom_tools": {
+    "selected": [
+      "Claude Code（Anthropic）"
+    ],
+    "selected_keys": [
+      "claude_code"
+    ]
+  }
+}

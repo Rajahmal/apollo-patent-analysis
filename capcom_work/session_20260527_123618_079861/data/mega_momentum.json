@@ -1,0 +1,225 @@
+{
+  "metadata": {
+    "module": "MEGA",
+    "mode": "PULSE",
+    "axis": "出願人",
+    "total_entities": 30
+  },
+  "entities": [
+    {
+      "name": "0.0",
+      "cagr": 0,
+      "activity": 0,
+      "total": 12,
+      "quadrant": "衰退・ニッチ (Declining/Niche)"
+    },
+    {
+      "name": "0.0",
+      "cagr": 0,
+      "activity": 1,
+      "total": 107,
+      "quadrant": "衰退・ニッチ (Declining/Niche)"
+    },
+    {
+      "name": "-0.242141716744801",
+      "cagr": 0,
+      "activity": 0,
+      "total": 12,
+      "quadrant": "衰退・ニッチ (Declining/Niche)"
+    },
+    {
+      "name": "0.0",
+      "cagr": 0,
+      "activity": 0,
+      "total": 11,
+      "quadrant": "衰退・ニッチ (Declining/Niche)"
+    },
+    {
+      "name": "0.0",
+      "cagr": 0,
+      "activity": 0,
+      "total": 10,
+      "quadrant": "衰退・ニッチ (Declining/Niche)"
+    },
+    {
+      "name": "0.1472026904398771",
+      "cagr": 0,
+      "activity": 0,
+      "total": 13,
+      "quadrant": "衰退・ニッチ (Declining/Niche)"
+    },
+    {
+      "name": "0.0",
+      "cagr": 0,
+      "activity": 0,
+      "total": 12,
+      "quadrant": "衰退・ニッチ (Declining/Niche)"
+    },
+    {
+      "name": "-0.03101552609873759",
+      "cagr": 0,
+      "activity": 0,
+      "total": 14,
+      "quadrant": "衰退・ニッチ (Declining/Niche)"
+    },
+    {
+      "name": "0.0",
+      "cagr": 0,
+      "activity": 0,
+      "total": 13,
+      "quadrant": "衰退・ニッチ (Declining/Niche)"
+    },
+    {
+      "name": "-0.24126350734219526",
+      "cagr": 0,
+      "activity": 0,
+      "total": 18,
+      "quadrant": "衰退・ニッチ (Declining/Niche)"
+    },
+    {
+      "name": "0.0",
+      "cagr": 0,
+      "activity": 3,
+      "total": 117,
+      "quadrant": "成熟・既存勢力 (Established)"
+    },
+    {
+      "name": "0.13653347600972432",
+      "cagr": 0,
+      "activity": 12,
+      "total": 24,
+      "quadrant": "リーダー (Leaders)"
+    },
+    {
+      "name": "0.7320508075688772",
+      "cagr": 0,
+      "activity": 10,
+      "total": 10,
+      "quadrant": "リーダー (Leaders)"
+    },
+    {
+      "name": "-0.06805725860180156",
+      "cagr": 0,
+      "activity": 0,
+      "total": 12,
+      "quadrant": "衰退・ニッチ (Declining/Niche)"
+    },
+    {
+      "name": "0.0",
+      "cagr": 0,
+      "activity": 1,
+      "total": 21,
+      "quadrant": "衰退・ニッチ (Declining/Niche)"
+    },
+    {
+      "name": "0.0",
+      "cagr": 0,
+      "activity": 3,
+      "total": 29,
+      "quadrant": "成熟・既存勢力 (Established)"
+    },
+    {
+      "name": "-0.01599047477840354",
+      "cagr": 0,
+      "activity": 0,
+      "total": 57,
+      "quadrant": "衰退・ニッチ (Declining/Niche)"
+    },
+    {
+      "name": "0.0",
+      "cagr": 0,
+      "activity": 2,
+      "total": 10,
+      "quadrant": "成熟・既存勢力 (Established)"
+    },
+    {
+      "name": "0.021897148654116627",
+      "cagr": 0,
+      "activity": 2,
+      "total": 27,
+      "quadrant": "リーダー (Leaders)"
+    },
+    {
+      "name": "-0.02217118392166839",
+      "cagr": 0,
+      "activity": 0,
+      "total": 13,
+      "quadrant": "衰退・ニッチ (Declining/Niche)"
+    },
+    {
+      "name": "0.0",
+      "cagr": 0,
+      "activity": 0,
+      "total": 12,
+      "quadrant": "衰退・ニッチ (Declining/Niche)"
+    },
+    {
+      "name": "0.0",
+      "cagr": 0,
+      "activity": 0,
+      "total": 21,
+      "quadrant": "衰退・ニッチ (Declining/Niche)"
+    },
+    {
+      "name": "-0.09111027187987963",
+      "cagr": 0,
+      "activity": 0,
+      "total": 69,
+      "quadrant": "衰退・ニッチ (Declining/Niche)"
+    },
+    {
+      "name": "0.0",
+      "cagr": 0,
+      "activity": 1,
+      "total": 36,
+      "quadrant": "衰退・ニッチ (Declining/Niche)"
+    },
+    {
+      "name": "0.056467308549537965",
+      "cagr": 0,
+      "activity": 0,
+      "total": 30,
+      "quadrant": "衰退・ニッチ (Declining/Niche)"
+    },
+    {
+      "name": "0.029302236643492074",
+      "cagr": 0,
+      "activity": 4,
+      "total": 43,
+      "quadrant": "リーダー (Leaders)"
+    },
+    {
+      "name": "-0.022627818233741936",
+      "cagr": 0,
+      "activity": 4,
+      "total": 61,
+      "quadrant": "成熟・既存勢力 (Established)"
+    },
+    {
+      "name": "0.0",
+      "cagr": 0,
+      "activity": 0,
+      "total": 30,
+      "quadrant": "衰退・ニッチ (Declining/Niche)"
+    },
+    {
+      "name": "0.02587829924448326",
+      "cagr": 0,
+      "activity": 12,
+      "total": 13,
+      "quadrant": "リーダー (Leaders)"
+    },
+    {
+      "name": "-0.015285247065568774",
+      "cagr": 0,
+      "activity": 3,
+      "total": 12,
+      "quadrant": "成熟・既存勢力 (Established)"
+    }
+  ],
+  "quadrant_summary": {
+    "衰退・ニッチ (Declining/Niche)": 20,
+    "成熟・既存勢力 (Established)": 5,
+    "リーダー (Leaders)": 5
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "id": 5,
+  "module": "CORE",
+  "title": "CORE Map (全体 (Overall)): 技術分類 vs 課題分類",
+  "description": "COREマトリクス分析: 技術分類 (X) × 課題分類 (Y)。対象: 全体 (Overall)。",
+  "images": [
+    "snapshots/voyager_ev5_0.png"
+  ],
+  "data_summary": {
+    "module": "CORE",
+    "type": "matrix",
+    "axes": {
+      "x": "技術分類",
+      "y": "課題分類"
+    },
+    "matrix_data": "Y,二酸化炭素固定化・環境技術,その他炭酸塩関連技術,炭酸塩製造・粒子制御技術,製紙・パルププロセス技術\n温室効果ガス削減・環境対応,53,12,9,0\nその他の課題,0,20,13,0\n粒子形状・結晶構造の制御,0,5,3,0\n材料・製品の物性向上,0,0,0,1\n",
+    "matrix_context": "Analysis Target: 全体 (Overall)",
+    "stats": {
+      "total_count": 116,
+      "max_value": 53
+    },
+    "chart_data": "Matrix (課題分類 vs 技術分類) - Target: 全体 (Overall)\nY,二酸化炭素固定化・環境技術,その他炭酸塩関連技術,炭酸塩製造・粒子制御技術,製紙・パルププロセス技術\n温室効果ガス削減・環境対応,53,12,9,0\nその他の課題,0,20,13,0\n粒子形状・結晶構造の制御,0,5,3,0\n材料・製品の物性向上,0,0,0,1\n"
+  }
+}
