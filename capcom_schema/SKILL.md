@@ -37,7 +37,9 @@ description: >
 - ✅ Web調査ゲート(Phase B) → 守る(省略不可)
 - ✅ deep_dive 最低行数(Phase C) → 守る(省略不可)
 - ✅ 品質チェック実行(Phase D) → 守る(省略不可)
+- ✅ **アウトプット形式選択ゲート(Phase E)** → 守る(省略不可)。Phase D 通過後、ユーザーに必ず PDF/PPTX/両方の 3 択を提示する
 - ❌ 「効率のためゲート省略」→ 禁止
+- ❌ 「AI 判断で PDF だけ作る・PPTX だけ作る」→ 禁止（Phase E のユーザー選択必須）
 
 両者が衝突する場合、**ゲート優先**。トークンが足りなければユーザーに `/compact` 実行を依頼する、または分割実施を提案する。
 
@@ -613,6 +615,74 @@ exemplarsを参照し、全モジュールのdeep_dive.typを生成する。Phas
 → **完了条件**: report.typが品質基準を満たす + 用語チェックが全てゼロヒット + 別冊フラグが ON なら report_executive.typ も品質基準を満たす
 → **レポート構造**: `analysis/report_structure.md`（全体構造・deep_diveコピールール・結論章ガイド・付録テンプレート・v8 母集団メタ反映）
 → **別冊構造**: `analysis/executive_summary_guide.md`（。経営層向け要約版の執筆ルール・ページ構成・凝縮技法）
+
+---
+
+### Phase E: アウトプット形式選択ゲート（必須・全セッション共通）
+
+🛑 **STOP-GATE (アウトプット形式の選択)**: Phase D の品質ゲート通過後、レポート生成は **必ずここで止まりユーザーに形式を選ばせる**。AI 側の推測でいずれかを勝手に進めることは禁止。
+
+本セッションの分析結果から最終アウトプットを生成するにあたり、ユーザーに以下の選択肢を `AskUserQuestion` で提示する:
+
+| 選択肢 | 出力 | 用途 |
+|---|---|---|
+| **ドキュメント形式** | `reports/report.pdf`（Typst 経由） | 詳細レポート。本文・付録・脚注込みの本格資料 |
+| **プレゼン形式（PPTX）** | `reports/apollo_report_YYYYMMDD.pptx` | コンサル品質のスライド。経営層向け・会議用 |
+| **両方** | 上記の両ファイル | 配布物として両形式が必要な場合 |
+
+**質問テンプレート（必ず `AskUserQuestion` で提示）**:
+
+```
+質問: 「分析が完了しました。最終アウトプットの形式を選んでください」
+ヘッダー: 「出力形式」
+選択肢:
+  - ドキュメント形式（PDF） — 本格的な詳細レポート
+  - プレゼン形式（PPTX） — コンサル品質のスライド資料
+  - 両方を生成
+```
+
+#### Phase E-1: ドキュメント形式（PDF）が選択された場合
+
+既存の `report.typ` をそのまま PDF にコンパイルする:
+
+```bash
+# report_style.typ を reports/ に配置（未配置なら）
+cp capcom_schema/templates/report_style.typ reports/report_style.typ
+
+# Typst でコンパイル（root をセッションディレクトリに指定）
+typst compile reports/report.typ reports/report.pdf --root .
+# または Python バインディング: python3 -c "import typst; typst.compile('reports/report.typ', output='reports/report.pdf', root='.')"
+```
+
+完成したら `SendUserFile` で PDF をユーザーに送付する。
+
+#### Phase E-2: プレゼン形式（PPTX）が選択された場合
+
+`.claude/skills/apollo-pptx/SKILL.md` のスキルを起動し、`capcom_schema/templates/slides_spec.md`（v5.0 スライド仕様 15 タイプ）に**完全準拠**して生成する。
+
+**起動手順**（省略禁止）:
+1. `.claude/skills/apollo-pptx/SKILL.md` を読了 → 起動条件・運用ルールを把握
+2. `capcom_schema/templates/slides_spec.md` を **Section 0〜6 まで熟読** → コアユーティリティ・15 スライドタイプ・推奨シーケンスを把握（**仕様書が実装の正、SKILL.md と矛盾する場合は slides_spec.md 優先**）
+3. `voyager/mission.json` / `data/*.json` / `snapshots/*.png` / `reports/report.typ` を参照し、本セッションの主要発見をスライド化
+4. `apollo_template.pptx` をベースに **25〜30 枚** を構築（データが少ない場合は最低 12 枚）
+5. 出力: `reports/apollo_report_YYYYMMDD.pptx`
+
+**品質ルール（slides_spec.md と整合）**:
+- フッターは `"APOLLO"`（`"APOLLO CAPCOM"` 不可）
+- 全スライドのタイトルが**結論型**（数値含む、「～」副題）
+- **チャート + 注釈スライドが 50% 以上**、**テキストのみは 10% 以下**
+- 全 run に **Meiryo UI** + `lang="ja-JP"`
+- Phase D で確定した主要発見・代表特許・KPI を**再利用**（独自再集計は禁止）
+- 仮説検証スライド・戦略ロードマップを必ず含める
+
+完成したら `SendUserFile` で PPTX をユーザーに送付する。
+
+#### Phase E-3: 両方が選択された場合
+
+E-1 → E-2 の順で両方生成。最後に両ファイルを `SendUserFile` で送付する。
+
+→ **完了条件**: ユーザーが選択した形式の成果物が `reports/` に存在し、品質ルールを満たし、ユーザーに送付済み
+→ **Phase E が省略可能になる唯一の条件**: ユーザーが明示的に「アウトプット不要」「ファイルは作らない」と回答した場合のみ。AI の自己判断で省略してはならない
 → **用語統一**: `analysis/terminology.md`（内部識別子の露出禁止ルールと正式日本語呼称）
 → **品質検証**: `analysis/quality_checklist.md`（定量チェックコマンド・全チェック項目・推奨項目）
 

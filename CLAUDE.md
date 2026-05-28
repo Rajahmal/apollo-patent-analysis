@@ -109,10 +109,19 @@ summary = patiroha.generate_spatial_summary(df, "cluster", "umap_x", "umap_y")
 - レポート深度: 骨格（最初の10%）
 
 ### CAPCOM（外部・Claude Code）
-- 双方向通信: **In-Memoryセッション → ZIPダウンロード → ローカル展開 → Claude Code → Typst/PDF**
-- 4フェーズ（ツァーリ・ボンバ対策版）: ミッション+データ → エビデンス+クロス → Deep Dive → 統合
+- 双方向通信: **In-Memoryセッション → ZIPダウンロード → ローカル展開 → Claude Code → Typst/PDF または PPTX**
+- 5フェーズ（ツァーリ・ボンバ対策版 + アウトプット選択ゲート）: ミッション+データ → エビデンス+クロス → Deep Dive → 統合 → **アウトプット形式選択（Phase E）**
 - レポート深度: 本格レポート（残り90%）
 - **重要**: Web版(HF Spaces / Streamlit Cloud)対応のため、データは `st.session_state['capcom_store']` に保持されブラウザを閉じると消失する。ユーザーは必ず CAPCOM ページから ZIP をダウンロードし、ローカルで Claude Code を起動して使用する
+
+### CAPCOM アウトプット形式選択ゲート（Phase E・全セッション必須）
+- Phase D（品質ゲート通過）後、**必ず `AskUserQuestion` で 3 択を提示**する: ドキュメント形式（PDF） / プレゼン形式（PPTX） / 両方
+- AI 側の推測でいずれかを勝手に進めるのは禁止（ゲート省略不可）
+- **PDF 選択時**: `typst compile reports/report.typ ... --root .` で `reports/report.pdf` を生成
+- **PPTX 選択時**: `.claude/skills/apollo-pptx/` スキルを起動し、`capcom_schema/templates/slides_spec.md`（v5.0 スライド仕様 15 タイプ）に**完全準拠**して `reports/apollo_report_YYYYMMDD.pptx` を生成。Phase D の主要発見・代表特許・KPI を**再利用**（独自再集計禁止）
+- **両方選択時**: PDF → PPTX の順で両方を生成
+- 完成後は `SendUserFile` でユーザーへ送付
+- 詳細手順: `capcom_schema/SKILL.md` の Phase E セクション
 
 ## CAPCOM トークン効率の制約（ツァーリ・ボンバ対策）
 - サブエージェント（Agent tool）を起動しないこと。全処理をメインコンテキスト内で完結させる
