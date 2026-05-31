@@ -27,15 +27,22 @@ MIN_PATENTS = 5        # 分析に含める最小出願件数
 
 
 def _gini(counts):
-    """件数リストからジニ係数を計算（0=完全分散, 1=完全集中）"""
+    """件数リストからジニ係数を計算（0=完全分散, 1=完全集中）
+
+    標準式: G = (2*Σ(i*x_i)) / (n*Σx_i) - (n+1)/n  （x_i は昇順ソート, i は1始まり）
+    """
     if not counts or sum(counts) == 0:
         return 0.0
     arr = np.array(sorted(counts), dtype=float)
     n = len(arr)
     if n == 1:
         return 0.0
-    cumsum = np.cumsum(arr)
-    return float((2 * np.sum(cumsum) - (n + 1) * arr.sum()) / (n * arr.sum()))
+    total = arr.sum()
+    if total == 0:
+        return 0.0
+    idx = np.arange(1, n + 1)
+    g = (2.0 * np.sum(idx * arr)) / (n * total) - (n + 1.0) / n
+    return float(max(0.0, g))  # 数値誤差で僅かな負値になる場合は0でクリップ
 
 
 def _parse_list_col(val):
@@ -78,7 +85,7 @@ def analyze_ipc_portfolio(patents_csv: str, output_json: str) -> None:
     app_col = next(
         (c for c in ('applicant_main', 'applicant', '出願人') if c in df.columns), None)
     ipc_col = next(
-        (c for c in ('ipc_list', 'ipc', 'IPC', '国際特許分類') if c in df.columns), None)
+        (c for c in ('ipc_main_group', 'ipc_list', 'ipc', 'IPC', '国際特許分類') if c in df.columns), None)
     year_col = next(
         (c for c in ('year', 'Year', '年') if c in df.columns), None)
 

@@ -67,8 +67,9 @@ def detect_white_space(patents_csv: str, output_json: str) -> None:
     y_hi = np.percentile(y, (1 - INNER_MARGIN) * 100)
 
     has_cluster_label = 'cluster_label' in df.columns and 'cluster' in df.columns
-    has_ipc = any(c in df.columns for c in ('ipc_list', 'ipc', 'IPC'))
-    ipc_col = next((c for c in ('ipc_list', 'ipc', 'IPC') if c in df.columns), None)
+    _ipc_candidates = ('ipc_main_group', 'ipc_list', 'ipc', 'IPC', '国際特許分類')
+    has_ipc = any(c in df.columns for c in _ipc_candidates)
+    ipc_col = next((c for c in _ipc_candidates if c in df.columns), None)
     df_valid = df[df['cluster'] != -1].copy() if has_cluster_label else df.copy()
 
     candidate_zones = []

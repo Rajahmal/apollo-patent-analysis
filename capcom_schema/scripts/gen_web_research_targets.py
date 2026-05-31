@@ -80,7 +80,7 @@ def generate_web_research_targets(patents_csv: str, output_json: str) -> None:
     app_col = next(
         (c for c in ('applicant_main', 'applicant', '出願人') if c in df.columns), None)
     ipc_col = next(
-        (c for c in ('ipc_list', 'ipc', 'IPC', '国際特許分類') if c in df.columns), None)
+        (c for c in ('ipc_main_group', 'ipc_list', 'ipc', 'IPC', '国際特許分類') if c in df.columns), None)
     year_col = next(
         (c for c in ('year', 'Year', '年') if c in df.columns), None)
 
