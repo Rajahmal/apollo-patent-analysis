@@ -34,6 +34,9 @@ dist/
 # 旧 CAPCOM output ディレクトリ (In-Memory化により不要になったが、念のため除外)
 output/
 
+# 生成物 (スライド・レポート・レンダリング画像)
+reports/
+
 # バックアップ・テンポラリ
 *.bak
 *.orig

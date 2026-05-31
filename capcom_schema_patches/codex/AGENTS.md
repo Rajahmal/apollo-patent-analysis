@@ -12,6 +12,11 @@
    - Codex: `$apollo-capcom` または `/skills` → `apollo-capcom`
    - Antigravity: チャットで「apollo-capcom スキルで…」と指示
    - スキル未起動のままレポートを書き始めることは**禁止**
+   - 成果物: Typst/PDF 本編レポート（`reports/report.typ`）
+1b. **スライド／プレゼン資料の生成依頼を受けたら `apollo-pptx` スキルを起動する**
+   - Codex: `$apollo-pptx` または `/skills` → `apollo-pptx`
+   - 成果物: PowerPoint プレゼン別冊（`reports/apollo_report_YYYYMMDD.pptx`）
+   - 実装仕様の正は `capcom_schema/templates/slides_spec.md`（v5.0、スライドタイプ15種）
 2. **常に本フォルダ（`session_*/`）をcwd として作業する**
    - 相対パス `capcom_schema/...`, `data/...`, `reports/...` 等がこの cwd 前提で書かれている
 3. **`capcom_schema/scripts/phase_c_gate.sh` と `phase_d_gate.sh` を省略不可**
@@ -54,7 +59,7 @@ session_YYYYMMDD_HHMMSS/               ← cwd
 ├── snapshots/                         # 可視化PNG
 ├── prompts/                           # AIインサイト（Markdown）
 ├── reports/                           # ★レポート出力先
-├── .codex/                            # Codex 適用時のみ（skills/apollo-capcom/）
+├── .codex/                            # Codex 適用時のみ（skills/apollo-capcom/, skills/apollo-pptx/）
 ├── .agent/                            # Antigravity 適用時のみ
 ├── AGENTS.md                          ← 本ファイル
 ├── GEMINI.md                          # Antigravity 適用時のみ
@@ -81,6 +86,8 @@ session_YYYYMMDD_HHMMSS/               ← cwd
 
 - スキル本体（Claude Code 版）: `capcom_schema/SKILL.md`
 - スキル本体（Codex 版）: `.codex/skills/apollo-capcom/SKILL.md`（Codex パッチ適用時）
+- スライド生成スキル（Codex 版）: `.codex/skills/apollo-pptx/SKILL.md`（Codex パッチ適用時）
+- スライド実装仕様: `capcom_schema/templates/slides_spec.md`（v5.0）
 - スキル本体（Antigravity 版）: `.agent/skills/apollo-capcom/SKILL.md`（Antigravity パッチ適用時）
 - 分析手法ガイド: `capcom_schema/analysis/` 9ファイル
 - 品質ゲート: `capcom_schema/scripts/phase_c_gate.sh`, `phase_d_gate.sh`

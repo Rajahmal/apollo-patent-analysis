@@ -7,6 +7,7 @@
 # 本スクリプトは以下のファイルを <session_dir> に追加します:
 #   - .codex/skills/apollo-capcom/SKILL.md
 #   - .codex/skills/apollo-capcom/prompts/*.md (5ファイル)
+#   - .codex/skills/apollo-pptx/SKILL.md
 #   - AGENTS.md
 #   - exec_mode_addendum.md
 #
@@ -49,7 +50,7 @@ echo "適用先:   $SESSION_DIR"
 echo ""
 
 # 1. .codex/skills/apollo-capcom/ をコピー
-echo "1/3: .codex/skills/apollo-capcom/ をコピー..."
+echo "1/4: .codex/skills/apollo-capcom/ をコピー..."
 mkdir -p "$SESSION_DIR/.codex/skills/apollo-capcom/prompts"
 cp "$PATCH_DIR/.codex/skills/apollo-capcom/SKILL.md" \
    "$SESSION_DIR/.codex/skills/apollo-capcom/SKILL.md"
@@ -57,9 +58,17 @@ cp "$PATCH_DIR/.codex/skills/apollo-capcom/prompts/"*.md \
    "$SESSION_DIR/.codex/skills/apollo-capcom/prompts/"
 echo "   ✅ SKILL.md + prompts/ 5ファイル"
 
-# 2. AGENTS.md を配置（既存があれば上書き確認）
+# 2. .codex/skills/apollo-pptx/ をコピー
 echo ""
-echo "2/3: AGENTS.md を配置..."
+echo "2/4: .codex/skills/apollo-pptx/ をコピー..."
+mkdir -p "$SESSION_DIR/.codex/skills/apollo-pptx"
+cp "$PATCH_DIR/.codex/skills/apollo-pptx/SKILL.md" \
+   "$SESSION_DIR/.codex/skills/apollo-pptx/SKILL.md"
+echo "   ✅ SKILL.md"
+
+# 3. AGENTS.md を配置（既存があれば上書き確認）
+echo ""
+echo "3/4: AGENTS.md を配置..."
 if [ -f "$SESSION_DIR/AGENTS.md" ]; then
   echo "   ⚠️  $SESSION_DIR/AGENTS.md は既に存在します"
   echo "   既存ファイルを上書きしますか? [y/N]"
@@ -78,9 +87,9 @@ else
   echo "   ✅ 配置完了"
 fi
 
-# 3. exec_mode_addendum.md を配置
+# 4. exec_mode_addendum.md を配置
 echo ""
-echo "3/3: exec_mode_addendum.md を配置..."
+echo "4/4: exec_mode_addendum.md を配置..."
 cp "$PATCH_DIR/exec_mode_addendum.md" "$SESSION_DIR/exec_mode_addendum.md"
 echo "   ✅ 配置完了"
 
@@ -94,6 +103,7 @@ added_files=(
   ".codex/skills/apollo-capcom/prompts/phase_b_webresearch.md"
   ".codex/skills/apollo-capcom/prompts/phase_c_plan.md"
   ".codex/skills/apollo-capcom/prompts/phase_d_plan.md"
+  ".codex/skills/apollo-pptx/SKILL.md"
   "AGENTS.md"
   "exec_mode_addendum.md"
 )
@@ -115,7 +125,8 @@ if [ $missing -eq 0 ]; then
   echo "次のステップ:"
   echo "  cd \"$SESSION_DIR\""
   echo "  codex                              # Codex CLI (TUIモード) を起動"
-  echo "  > \$apollo-capcom レポートを書いてください"
+  echo "  > \$apollo-capcom レポートを書いてください    # Typst/PDF 本編レポート"
+  echo "  > \$apollo-pptx スライドを作ってください       # PowerPoint プレゼン別冊"
   echo ""
   echo "⚠️  注意: 本スキルは対話モード必須です。codex exec では動きません (exec_mode_addendum.md 参照)"
   exit 0
