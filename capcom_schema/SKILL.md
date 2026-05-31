@@ -492,19 +492,35 @@ APOLLO では NEBULA モジュール（非特許文献分析: 学術論文・ニ
 
 ```bash
 # セッションフォルダをカレントディレクトリとして実行
-python capcom_schema/scripts/white_space.py   data/patents.csv data/white_space.json
-python capcom_schema/scripts/ipc_portfolio.py data/patents.csv data/ipc_portfolio.json
-python capcom_schema/scripts/gen_hires_maps.py data/patents.csv reports/ snapshots/
+python capcom_schema/scripts/ipc_portfolio.py          data/patents.csv data/ipc_portfolio.json
+python capcom_schema/scripts/white_space.py            data/patents.csv data/white_space.json
+python capcom_schema/scripts/gen_hires_maps.py         data/patents.csv reports/ snapshots/
+python capcom_schema/scripts/gen_web_research_targets.py data/patents.csv data/web_research_targets.json
+python capcom_schema/scripts/gen_strategy_map.py       data/patents.csv snapshots/
+python capcom_schema/scripts/gen_tech_lifecycle.py     data/patents.csv snapshots/
 ```
 
 | スクリプト | 必要な前提 | 出力 | 用途 |
 |-----------|----------|------|------|
-| `white_space.py` | umap_x/y 列（Saturn V 実行済み） | `data/white_space.json` | 技術空白の特定 → 戦略提言・PPTX |
 | `ipc_portfolio.py` | applicant 列 + ipc 列 | `data/ipc_portfolio.json` | 出願人×IPC集中度 → 競合分析・PPTX |
+| `white_space.py` | umap_x/y 列（Saturn V 実行済み） | `data/white_space.json` | 技術空白の特定 → 戦略提言・PPTX |
 | `gen_hires_maps.py` | umap_x/y 列 | `reports/patent_map_interactive.html`<br>`snapshots/patent_map_hires.png` | 高解像度マップ → PPTX・納品物 |
+| `gen_web_research_targets.py` | applicant 列 + ipc 列 | `data/web_research_targets.json` | **Phase B Web調査ターゲット生成** |
+| `gen_strategy_map.py` | applicant 列 + ipc 列 + year 列 | `snapshots/strategy_map.png`<br>`data/strategy_map.json` | オリジナル戦略マップ → PPTX |
+| `gen_tech_lifecycle.py` | cluster 列 + year 列 | `snapshots/tech_lifecycle.png`<br>`data/tech_lifecycle.json` | 技術ライフサイクル → PPTX |
 
-必要パッケージ（未インストール時は `pip install pandas numpy scipy plotly kaleido`）。
+必要パッケージ（未インストール時は `pip install pandas numpy scipy plotly kaleido matplotlib japanize-matplotlib`）。
 **実行できない場合は SKIP し、次の STOP-GATE へ進む。**
+
+#### ★ Phase B Web調査での活用（`data/web_research_targets.json` 生成後）
+
+上記スクリプト実行後、`web_research_targets.json` が存在する場合は **Phase B の Web調査計画提示フローを次の手順に差し替える**:
+
+1. `data/web_research_targets.json` を読む（players 配列 + tech_themes 配列）
+2. 「以下の{N}社 × {M}テーマでWeb調査を行います。よいですか？」と一覧を提示（ファイルの players[].name + tech_themes[].theme_name を列挙）
+3. ユーザー確認後、各 `search_queries` リストを WebSearch で実行
+4. 調査結果を `data/web_research_results.md` にまとめ、deep_dive の裏付けに使用
+5. 引用時は「URL・サイト名・取得日（YYYY-MM-DD）」を必ず明記
 
 ---
 
