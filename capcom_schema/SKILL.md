@@ -485,6 +485,29 @@ APOLLO では NEBULA モジュール（非特許文献分析: 学術論文・ニ
 
 ---
 
+### Phase C 前処理: 強化分析スクリプト実行（deep_dive 執筆前に1回のみ）
+
+以下のスクリプトを順番に実行する。**実行はコマンド1行ずつ。失敗してもSKIPして次へ進んでよい（品質ゲート対象外）。**
+生成された JSON は以降の deep_dive・PPTX生成（`/pptx`）で自動的に活用される。
+
+```bash
+# セッションフォルダをカレントディレクトリとして実行
+python capcom_schema/scripts/white_space.py   data/patents.csv data/white_space.json
+python capcom_schema/scripts/ipc_portfolio.py data/patents.csv data/ipc_portfolio.json
+python capcom_schema/scripts/gen_hires_maps.py data/patents.csv reports/ snapshots/
+```
+
+| スクリプト | 必要な前提 | 出力 | 用途 |
+|-----------|----------|------|------|
+| `white_space.py` | umap_x/y 列（Saturn V 実行済み） | `data/white_space.json` | 技術空白の特定 → 戦略提言・PPTX |
+| `ipc_portfolio.py` | applicant 列 + ipc 列 | `data/ipc_portfolio.json` | 出願人×IPC集中度 → 競合分析・PPTX |
+| `gen_hires_maps.py` | umap_x/y 列 | `reports/patent_map_interactive.html`<br>`snapshots/patent_map_hires.png` | 高解像度マップ → PPTX・納品物 |
+
+必要パッケージ（未インストール時は `pip install pandas numpy scipy plotly kaleido`）。
+**実行できない場合は SKIP し、次の STOP-GATE へ進む。**
+
+---
+
 ### Phase C: モジュール別deep dive ⚠ スキップ禁止
 
 🛑 **STOP-GATE (リファレンス読了 + 計画確認)**: 以下を全て実行するまで deep_dive の執筆を始めるな

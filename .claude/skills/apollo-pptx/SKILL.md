@@ -106,6 +106,7 @@ BORDER_GRAY: #D8DADD  (罫線)
 | ATLAS | 出願トレンド（棒グラフ+注釈）| atlas_statistics.json |
 | ATLAS | 出願人ランキング + HHI/Entropy/Gini | atlas_statistics.json |
 | Saturn V | 技術ランドスケープ（スナップショット画像+注釈）| saturnv_clusters.json + snapshots/ |
+| Saturn V | **高解像度技術マップ**（インタラクティブHTML画像+注釈）| **snapshots/patent_map_hires.png**（強化スクリプト生成） |
 | Saturn V | クラスタ動態マップ（4象限+注釈）| saturnv_clusters.json の cluster_dynamics |
 | Saturn V | ノイズ分析（萌芽テーマ）| saturnv_clusters.json の noise_analysis |
 | MEGA | PULSE 4象限（スナップショット+注釈）| mega_momentum.json + snapshots/ |
@@ -115,6 +116,37 @@ BORDER_GRAY: #D8DADD  (罫線)
 | NEBULA | Hype Cycle（スナップショット+注釈）| nebula_hype_cycle.json |
 | NEBULA | 学術ランドスケープ（スナップショット+注釈）| nebula_academic_clusters.json |
 | NEBULA | 学術クラスタ動態マップ | nebula_academic_clusters.json の cluster_dynamics |
+| **技術空白分析** | **白地領域マップ（ピラミッド or 2×2マトリクス+注釈）** | **data/white_space.json**（強化スクリプト生成） |
+| **競合ポートフォリオ** | **IPC×出願人 技術ポートフォリオ（比較テーブル+注釈）** | **data/ipc_portfolio.json**（強化スクリプト生成） |
+
+> **強化スクリプト生成ファイルの確認**: PPTX生成前に以下を確認する。
+> - `data/white_space.json` が存在する → 白地スライドを追加
+> - `data/ipc_portfolio.json` が存在する → IPC比較スライドを追加
+> - `snapshots/patent_map_hires.png` が存在する → 通常スナップショットの代わりに使用（高解像度のため優先）
+> 存在しない場合は従来のスナップショット/データで代替。スライド自体を省略しない。
+
+### 強化スライドの作成ガイド
+
+#### 白地領域スライド（`data/white_space.json` 使用時）
+- **タイトル**: 「XX領域に技術空白 ～競合未参入のH04L×G06F境界域が3ゾーン検出」（具体的IPC・ゾーン数を記載）
+- **EYEBROW**: `Saturn V / 技術空白分析`
+- **スライドタイプ**: `add_matrix_2x2()` でゾーンを4象限（近傍クラスタ×IPC境界）に配置、または `add_pyramid()` で「白地の優先度（機会の大きさ）」を3層表示
+- **注釈**: 上位3白地ゾーンを■箇条書き。各ゾーンに `nearest_clusters` と `boundary_ipc` を記載
+- **戦略含意**: 「なぜこの白地が機会なのか」を非自明な主張として1文必ず書く
+
+#### IPCポートフォリオスライド（`data/ipc_portfolio.json` 使用時）
+- **タイトル**: 「A社がH04Lに71%集中、B社は6分野分散 ～競争構造の非対称性が鮮明」（数値を含む結論型）
+- **EYEBROW**: `ATLAS / 技術ポートフォリオ`
+- **スライドタイプ**: `add_comparison_table()` で出願人×IPC集中度・Gini・戦略タイプを比較
+  - 列: 出願人名 / 主要IPC / Gini係数 / 戦略タイプ
+  - 最高集中度のセルにクリムゾンハイライト
+- **注釈**: `ipc_gap_for_top_players`（主要プレイヤー未参入IPC）を「市場の白地IPC」として記載
+- 別スライドとして「IPC別出願件数タイムライン（`year_trend`）」を追加してもよい
+
+#### 高解像度マップスライド（`snapshots/patent_map_hires.png` 使用時）
+- 通常の Saturn V スナップショット（低解像度）の代わりに使用
+- `fit_image()` で左60%に配置。スケール3xのため印刷品質
+- 注釈に「インタラクティブ版は `reports/patent_map_interactive.html` を参照」と記載
 
 ### 必須締めスライド
 - **仮説検証サマリー** — CAPCOMレポートの仮説検証テーブルをスライド化。各仮説の判定（✅/❌/⚠️）と根拠を1行ずつ
