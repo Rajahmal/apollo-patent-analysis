@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APOLLO v8.0 — 分析アーキテクチャ</title>
+<style>
+/* ===== Apollo Design System ===== */
+:root {
+  --ink:         #111111;
+  --paper:       #ffffff;
+  --accent:      #C51212;
+  --bright-red:  #E33333;
+  --deep-red:    #831010;
+  --dark-bg:     #101011;
+  --medium-gray: #686868;
+  --light-gray:  #F1F2F3;
+  --pale-gray:   #F6F7F8;
+  --border-gray: #D8DADD;
+  --ghost:       #2a2a2a;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Yu Gothic', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+  background: var(--pale-gray);
+  color: var(--ink);
+  line-height: 1.6;
+}
+
+/* ===== Header ===== */
+.site-header {
+  background: var(--dark-bg);
+  color: white;
+  padding: 48px 60px 40px;
+  position: relative;
+  overflow: hidden;
+}
+.site-header::before {
+  content: 'APOLLO';
+  position: absolute;
+  right: -20px; top: -10px;
+  font-size: 200px;
+  font-weight: 900;
+  color: var(--ghost);
+  letter-spacing: -8px;
+  pointer-events: none;
+  font-family: 'Century Gothic', 'Gill Sans', sans-serif;
+}
+.header-strip {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 5px;
+  background: var(--accent);
+}
+.header-kicker {
+  font-size: 11px;
+  letter-spacing: 4px;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  font-family: 'Century Gothic', sans-serif;
+}
+.header-title {
+  font-size: 36px;
+  font-weight: 300;
+  font-family: 'Yu Mincho', 'Georgia', serif;
+  color: white;
+  margin-bottom: 8px;
+  position: relative;
+}
+.header-title strong { font-weight: 700; }
+.header-rule {
+  width: 60px; height: 2px;
+  background: var(--accent);
+  margin: 16px 0;
+}
+.header-sub {
+  font-size: 13px;
+  color: #999;
+  max-width: 640px;
+}
+
+/* ===== Layout ===== */
+.content {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 48px 32px 80px;
+}
+
+/* ===== Section Label ===== */
+.section-label {
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-family: 'Century Gothic', sans-serif;
+  margin-bottom: 6px;
+}
+
+/* ===== Overview ===== */
+.overview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 56px;
+}
+.kpi-card {
+  background: var(--paper);
+  border: 1px solid var(--border-gray);
+  border-top: 3px solid var(--accent);
+  padding: 20px 24px;
+}
+.kpi-num {
+  font-size: 42px;
+  font-weight: 700;
+  font-family: 'Century Gothic', sans-serif;
+  color: var(--ink);
+  line-height: 1;
+}
+.kpi-num span { font-size: 18px; font-weight: 400; margin-left: 2px; }
+.kpi-label { font-size: 12px; color: var(--medium-gray); margin-top: 6px; }
+
+/* ===== Flow ===== */
+.flow-title {
+  font-family: 'Yu Mincho', serif;
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 32px;
+  border-left: 4px solid var(--accent);
+  padding-left: 16px;
+}
+
+.flow-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Stage Card */
+.stage {
+  background: var(--paper);
+  border: 1px solid var(--border-gray);
+  border-left: 4px solid var(--border-gray);
+  padding: 0;
+  transition: box-shadow .2s;
+  cursor: pointer;
+  position: relative;
+}
+.stage:hover { box-shadow: 0 4px 24px rgba(0,0,0,.08); }
+.stage.accent { border-left-color: var(--accent); }
+.stage.dark-stage {
+  background: var(--dark-bg);
+  border-color: #333;
+  border-left-color: var(--accent);
+  color: white;
+}
+.stage.script-stage { border-left-color: var(--deep-red); }
+
+.stage-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+}
+.stage-icon {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.stage-icon.gray   { background: var(--light-gray); }
+.stage-icon.dark   { background: #1e1e1f; }
+.stage-icon.red    { background: var(--accent); }
+.stage-icon.dred   { background: var(--deep-red); }
+
+.stage-meta { flex: 1; }
+.stage-num {
+  font-size: 10px; letter-spacing: 2px;
+  color: var(--medium-gray); text-transform: uppercase;
+  font-family: 'Century Gothic', sans-serif;
+}
+.dark-stage .stage-num { color: #666; }
+.stage-name {
+  font-size: 17px; font-weight: 700;
+  font-family: 'Yu Mincho', serif;
+  margin-top: 2px;
+}
+.stage-desc {
+  font-size: 12px; color: var(--medium-gray); margin-top: 2px;
+}
+.dark-stage .stage-desc { color: #888; }
+
+.stage-toggle {
+  font-size: 18px; color: var(--medium-gray);
+  transition: transform .2s;
+  user-select: none;
+}
+.stage.open .stage-toggle { transform: rotate(180deg); }
+
+/* Stage Body */
+.stage-body {
+  display: none;
+  border-top: 1px solid var(--border-gray);
+  padding: 20px 24px;
+}
+.dark-stage .stage-body { border-top-color: #2a2a2a; }
+.stage.open .stage-body { display: block; }
+
+/* Chips */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.chip {
+  padding: 4px 12px;
+  border-radius: 100px;
+  font-size: 12px;
+  border: 1px solid var(--border-gray);
+  background: var(--pale-gray);
+  color: var(--ink);
+  white-space: nowrap;
+}
+.chip.red { background: #fdf2f2; border-color: #f5b8b8; color: var(--accent); }
+.chip.dark { background: #1e1e1f; border-color: #333; color: #ccc; }
+.chip.new { background: var(--accent); color: white; border-color: var(--accent); }
+
+/* Script grid */
+.script-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+.script-item {
+  border: 1px solid var(--border-gray);
+  background: var(--pale-gray);
+  padding: 12px 14px;
+  border-radius: 2px;
+  position: relative;
+}
+.script-item.strategic { border-left: 3px solid var(--accent); }
+.script-filename {
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  color: var(--medium-gray);
+}
+.script-label {
+  font-size: 13px; font-weight: 600;
+  color: var(--ink); margin: 4px 0 2px;
+}
+.script-output {
+  font-size: 11px; color: var(--medium-gray);
+}
+.script-badge {
+  position: absolute;
+  top: 10px; right: 10px;
+  font-size: 9px;
+  padding: 2px 7px;
+  border-radius: 100px;
+  background: var(--accent);
+  color: white;
+  letter-spacing: 1px;
+}
+
+/* Phases */
+.phases {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+.phase-card {
+  border: 1px solid #2a2a2a;
+  background: #161617;
+  padding: 14px 16px;
+  border-radius: 2px;
+}
+.phase-card.highlight { border-color: var(--accent); }
+.phase-label {
+  font-size: 10px; letter-spacing: 2px;
+  color: var(--accent); text-transform: uppercase;
+  font-family: 'Century Gothic', sans-serif;
+}
+.phase-name { font-size: 13px; color: white; font-weight: 600; margin: 4px 0 6px; }
+.phase-items { list-style: none; }
+.phase-items li {
+  font-size: 11px; color: #888;
+  padding: 2px 0;
+  border-bottom: 1px solid #1e1e1f;
+}
+.phase-items li::before { content: '— '; color: #444; }
+
+/* Output */
+.output-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+.output-item {
+  border: 1px solid var(--border-gray);
+  padding: 16px;
+  background: var(--pale-gray);
+  text-align: center;
+}
+.output-icon { font-size: 28px; margin-bottom: 8px; }
+.output-name { font-size: 13px; font-weight: 700; }
+.output-fmt { font-size: 11px; color: var(--medium-gray); margin-top: 2px; }
+
+/* Arrow connector */
+.arrow-connector {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 44px;
+  position: relative;
+}
+.arrow-connector::before {
+  content: '';
+  position: absolute;
+  left: 50%; top: 0; bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--border-gray), var(--accent));
+  transform: translateX(-50%);
+}
+.arrow-label {
+  position: relative;
+  background: var(--pale-gray);
+  padding: 3px 12px;
+  border: 1px solid var(--border-gray);
+  border-radius: 100px;
+  font-size: 10px;
+  color: var(--medium-gray);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+/* ===== Design Principles ===== */
+.principles {
+  margin-top: 64px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+.principle-card {
+  background: var(--paper);
+  border: 1px solid var(--border-gray);
+  padding: 24px;
+}
+.principle-num {
+  font-size: 48px;
+  font-weight: 900;
+  color: var(--light-gray);
+  font-family: 'Century Gothic', sans-serif;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.principle-title {
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'Yu Mincho', serif;
+  margin-bottom: 8px;
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: 6px;
+  display: inline-block;
+}
+.principle-body { font-size: 12px; color: var(--medium-gray); line-height: 1.7; }
+
+/* ===== Token Flow ===== */
+.token-section {
+  margin-top: 56px;
+  background: var(--dark-bg);
+  color: white;
+  padding: 32px 36px;
+  border-left: 4px solid var(--accent);
+}
+.token-title {
+  font-family: 'Yu Mincho', serif;
+  font-size: 18px; font-weight: 700;
+  margin-bottom: 20px;
+}
+.token-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.token-table th {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid #333;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 10px;
+  font-family: 'Century Gothic', sans-serif;
+}
+.token-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #1e1e1f;
+  color: #ccc;
+}
+.token-table tr:last-child td { border-bottom: none; }
+.token-low  { color: #88cc88; font-weight: 600; }
+.token-med  { color: #ccaa44; font-weight: 600; }
+.token-zero { color: #666; }
+
+/* ===== Footer ===== */
+footer {
+  background: var(--dark-bg);
+  color: #444;
+  text-align: center;
+  padding: 20px;
+  font-size: 11px;
+  letter-spacing: 2px;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .overview, .phases, .output-grid, .principles { grid-template-columns: 1fr; }
+  .script-grid { grid-template-columns: 1fr; }
+  .site-header { padding: 32px 24px 28px; }
+  .site-header::before { font-size: 100px; }
+  .content { padding: 32px 16px 60px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== Header ===== -->
+<header class="site-header">
+  <div class="header-strip"></div>
+  <div class="header-kicker">Analysis Architecture</div>
+  <h1 class="header-title"><strong>APOLLO</strong> v8.0</h1>
+  <div class="header-rule"></div>
+  <p class="header-sub">特許分析プラットフォームの全体アーキテクチャ。データ取込からAI生成レポートまでの情報フローと設計思想を解説する。</p>
+</header>
+
+<!-- ===== Content ===== -->
+<div class="content">
+
+  <!-- Overview KPIs -->
+  <div style="margin-bottom:12px" class="section-label">System Overview</div>
+  <div class="overview">
+    <div class="kpi-card">
+      <div class="kpi-num">2<span>系統</span></div>
+      <div class="kpi-label">分析エンジン（Streamlit + Claude Code）</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-num">10<span>モジュール</span></div>
+      <div class="kpi-label">APOLLOプラットフォーム分析機能</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-num">8<span>スクリプト</span></div>
+      <div class="kpi-label">CAPCOM強化分析（事前計算・トークン効率化）</div>
+    </div>
+  </div>
+
+  <!-- Flow Diagram -->
+  <div class="flow-title">分析フロー全体図</div>
+
+  <div class="flow-wrapper">
+
+    <!-- Stage 1 -->
+    <div class="stage accent" onclick="toggle(this)">
+      <div class="stage-header">
+        <div class="stage-icon gray">📂</div>
+        <div class="stage-meta">
+          <div class="stage-num">Stage 01</div>
+          <div class="stage-name">特許データ入力</div>
+          <div class="stage-desc">CSV取込 → カラムマッピング → 前処理パイプライン</div>
+        </div>
+        <div class="stage-toggle">▼</div>
+      </div>
+      <div class="stage-body">
+        <p style="font-size:13px;color:var(--medium-gray);margin-bottom:12px">
+          CSV形式の特許データをアップロード。<code>Home.py</code> がカラムを自動判定し、patirohaライブラリで前処理を実行する。
+        </p>
+        <div class="chips">
+          <span class="chip">CSV / TSV アップロード</span>
+          <span class="chip">スマートカラムマッピング</span>
+          <span class="chip">Unicode正規化 (NFKC)</span>
+          <span class="chip">出願人正規化</span>
+          <span class="chip">IPC解析</span>
+          <span class="chip">年度抽出</span>
+          <span class="chip">OpenALEX 学術論文統合</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-connector"><span class="arrow-label">前処理済み DataFrame</span></div>
+
+    <!-- Stage 2 -->
+    <div class="stage dark-stage" onclick="toggle(this)">
+      <div class="stage-header">
+        <div class="stage-icon dark">🛰️</div>
+        <div class="stage-meta">
+          <div class="stage-num">Stage 02</div>
+          <div class="stage-name">APOLLOプラットフォーム — 10分析モジュール</div>
+          <div class="stage-desc">Streamlitアプリ内での多次元分析。patiroha (SBERT・UMAP・HDBSCAN) がコアエンジン。</div>
+        </div>
+        <div class="stage-toggle" style="color:#666">▼</div>
+      </div>
+      <div class="stage-body">
+        <div class="chips">
+          <span class="chip dark">🌍 ATLAS — 基本統計・HHI/Entropy/Gini</span>
+          <span class="chip dark">💡 CORE — ルールベース分類</span>
+          <span class="chip dark">🚀 Saturn V — AIランドスケープ (UMAP+HDBSCAN)</span>
+          <span class="chip dark">📈 MEGA — 動態分析 (CAGR×活動量 4象限)</span>
+          <span class="chip dark">🧭 Explorer — 共起ネットワーク</span>
+          <span class="chip dark">🔗 CREW — ネットワーク分析</span>
+          <span class="chip dark">🦅 EAGLE — 探索的ランドスケープ</span>
+          <span class="chip dark">📝 VOYAGER — Gemini APIレポート (骨格10%)</span>
+          <span class="chip dark">🌌 NEBULA — 環境・学術クラスタ分析</span>
+          <span class="chip dark">📡 CAPCOM — セッション管理・ZIPエクスポート</span>
+        </div>
+        <p style="font-size:12px;color:#666;margin-top:14px">
+          各モジュールの分析結果は <code>st.session_state['capcom_store']</code> にIn-Memoryで蓄積される。ブラウザを閉じると消失するためZIPエクスポートが必須。
+        </p>
+      </div>
+    </div>
+
+    <div class="arrow-connector"><span class="arrow-label">CAPCOM ZIP エクスポート</span></div>
+
+    <!-- Stage 3 -->
+    <div class="stage accent" onclick="toggle(this)">
+      <div class="stage-header">
+        <div class="stage-icon red">📦</div>
+        <div class="stage-meta">
+          <div class="stage-num">Stage 03</div>
+          <div class="stage-name">CAPCOMセッションデータ</div>
+          <div class="stage-desc">ZIPを展開した session_xxx/ フォルダ — ここからClaudeCode側の世界</div>
+        </div>
+        <div class="stage-toggle">▼</div>
+      </div>
+      <div class="stage-body">
+        <div class="chips">
+          <span class="chip red">data/patents.csv — 全特許データ</span>
+          <span class="chip red">snapshots/ — 分析グラフ画像</span>
+          <span class="chip red">prompts/ — AIインサイトプロンプト</span>
+          <span class="chip red">voyager/mission.json — ミッション定義</span>
+          <span class="chip red">capcom_schema/ — SKILL・テンプレート群</span>
+        </div>
+        <p style="font-size:12px;color:var(--medium-gray);margin-top:12px">
+          <strong>重要:</strong> このZIPにはAI分析に必要な全データが含まれる。ローカルで展開し、Claude Codeを起動して使用する。
+        </p>
+      </div>
+    </div>
+
+    <div class="arrow-connector"><span class="arrow-label">bash capcom_schema/scripts/run_scripts.sh</span></div>
+
+    <!-- Stage 4 -->
+    <div class="stage script-stage" onclick="toggle(this)">
+      <div class="stage-header">
+        <div class="stage-icon dred">⚙️</div>
+        <div class="stage-meta">
+          <div class="stage-num">Stage 04</div>
+          <div class="stage-name">強化分析スクリプト群（事前計算）</div>
+          <div class="stage-desc">Pythonが重い計算を先に実行。Claude Codeは結果JSONを読むだけ → トークン効率化</div>
+        </div>
+        <div class="stage-toggle">▼</div>
+      </div>
+      <div class="stage-body">
+        <div class="script-grid">
+          <div class="script-item strategic">
+            <div class="script-badge">★ 戦略</div>
+            <div class="script-filename">gen_inflection_detector.py</div>
+            <div class="script-label">業界転換点検出</div>
+            <div class="script-output">→ data/inflection_points.json</div>
+            <p style="font-size:11px;color:var(--medium-gray);margin-top:6px">年別IPC分布のJensen-Shannon距離で業界の転換点を自動検出。Web調査クエリを事前生成。</p>
+          </div>
+          <div class="script-item strategic">
+            <div class="script-badge">★ 戦略</div>
+            <div class="script-filename">gen_player_anomaly.py</div>
+            <div class="script-label">プレイヤー異常行動検出</div>
+            <div class="script-output">→ data/player_anomaly.json</div>
+            <p style="font-size:11px;color:var(--medium-gray);margin-top:6px">各社の過去ベースライン vs 直近2年をJS距離で自己比較。「自社平均と異なる動き」を数値化。</p>
+          </div>
+          <div class="script-item">
+            <div class="script-filename">ipc_portfolio.py</div>
+            <div class="script-label">IPC技術ポートフォリオ</div>
+            <div class="script-output">→ data/ipc_portfolio.json</div>
+            <p style="font-size:11px;color:var(--medium-gray);margin-top:6px">出願人×IPC集中度(Gini)・戦略タイプ分類。</p>
+          </div>
+          <div class="script-item">
+            <div class="script-filename">white_space.py</div>
+            <div class="script-label">技術空白領域検出</div>
+            <div class="script-output">→ data/white_space.json</div>
+            <p style="font-size:11px;color:var(--medium-gray);margin-top:6px">UMAPグリッド密度分析で低密度領域（白地）を特定。</p>
+          </div>
+          <div class="script-item">
+            <div class="script-filename">gen_web_research_targets.py</div>
+            <div class="script-label">Web調査ターゲット生成</div>
+            <div class="script-output">→ data/web_research_targets.json</div>
+            <p style="font-size:11px;color:var(--medium-gray);margin-top:6px">上位5社 × 技術テーマのWebSearchクエリを自動生成。</p>
+          </div>
+          <div class="script-item">
+            <div class="script-filename">gen_strategy_map.py</div>
+            <div class="script-label">戦略ポジショニングマップ</div>
+            <div class="script-output">→ snapshots/strategy_map.png</div>
+            <p style="font-size:11px;color:var(--medium-gray);margin-top:6px">IPC Entropy × 出願モメンタムの4象限バブルチャート。</p>
+          </div>
+          <div class="script-item">
+            <div class="script-filename">gen_tech_lifecycle.py</div>
+            <div class="script-label">技術ライフサイクルカーブ</div>
+            <div class="script-output">→ snapshots/tech_lifecycle.png</div>
+            <p style="font-size:11px;color:var(--medium-gray);margin-top:6px">クラスタ別年別出願の折れ線＋フェーズ自動判定。</p>
+          </div>
+          <div class="script-item">
+            <div class="script-filename">gen_hires_maps.py</div>
+            <div class="script-label">高解像度特許マップ</div>
+            <div class="script-output">→ snapshots/patent_map_hires.png + .html</div>
+            <p style="font-size:11px;color:var(--medium-gray);margin-top:6px">Plotly Scatterglによる3×スケールPNG + インタラクティブHTML。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-connector"><span class="arrow-label">CAPCOM SKILL.md — 4フェーズ分析</span></div>
+
+    <!-- Stage 5 -->
+    <div class="stage dark-stage" onclick="toggle(this)">
+      <div class="stage-header">
+        <div class="stage-icon dark">🤖</div>
+        <div class="stage-meta">
+          <div class="stage-num">Stage 05</div>
+          <div class="stage-name">Claude Code Deep Dive分析</div>
+          <div class="stage-desc">4フェーズ構造。品質ゲートで各フェーズの完了を機械的に保証。</div>
+        </div>
+        <div class="stage-toggle" style="color:#666">▼</div>
+      </div>
+      <div class="stage-body">
+        <div class="phases">
+          <div class="phase-card highlight">
+            <div class="phase-label">Phase A</div>
+            <div class="phase-name">ミッション確認</div>
+            <ul class="phase-items">
+              <li>SKILL.md 読了</li>
+              <li>用語統一ルール確認</li>
+              <li>母集団・データベース把握</li>
+              <li>経営層向け別冊フラグ確認</li>
+            </ul>
+          </div>
+          <div class="phase-card">
+            <div class="phase-label">Phase B</div>
+            <div class="phase-name">エビデンス収集</div>
+            <ul class="phase-items">
+              <li>patents.csv 精読</li>
+              <li>AIインサイト3件以上</li>
+              <li>転換点→Web裏取り</li>
+              <li>異常プレイヤー調査</li>
+              <li>13種クロス分析</li>
+            </ul>
+          </div>
+          <div class="phase-card">
+            <div class="phase-label">Phase C</div>
+            <div class="phase-name">Deep Dive執筆</div>
+            <ul class="phase-items">
+              <li>モジュール別deep_dive.typ</li>
+              <li>代表特許15件以上</li>
+              <li>出願人5社以上 各5行</li>
+              <li>Phase C ゲートスクリプト</li>
+              <li>最低行数達成確認</li>
+            </ul>
+          </div>
+          <div class="phase-card">
+            <div class="phase-label">Phase D</div>
+            <div class="phase-name">統合レポート</div>
+            <ul class="phase-items">
+              <li>report.typ 統合</li>
+              <li>品質チェックリスト</li>
+              <li>付録（検索式・出所）</li>
+              <li>経営層向け別冊</li>
+              <li>Phase D ゲート確認</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-connector"><span class="arrow-label">/pptx スキル — 5レイヤーデザイン</span></div>
+
+    <!-- Stage 6 -->
+    <div class="stage accent" onclick="toggle(this)">
+      <div class="stage-header">
+        <div class="stage-icon red">📊</div>
+        <div class="stage-meta">
+          <div class="stage-num">Stage 06</div>
+          <div class="stage-name">最終アウトプット</div>
+          <div class="stage-desc">コンサルファーム品質のPDF・PPTX・インタラクティブHTML</div>
+        </div>
+        <div class="stage-toggle">▼</div>
+      </div>
+      <div class="stage-body">
+        <div class="output-grid">
+          <div class="output-item">
+            <div class="output-icon">📄</div>
+            <div class="output-name">本格レポート</div>
+            <div class="output-fmt">report.typ → PDF</div>
+            <p style="font-size:11px;color:var(--medium-gray);margin-top:8px">Typst組版。Deep Dive全章 + 統合分析 + 戦略提言 + 付録。</p>
+          </div>
+          <div class="output-item">
+            <div class="output-icon">🖥️</div>
+            <div class="output-name">プレゼン資料</div>
+            <div class="output-fmt">apollo_report_YYYYMMDD.pptx</div>
+            <p style="font-size:11px;color:var(--medium-gray);margin-top:8px">5レイヤーデザイン。Layer 3コールアウト・Layer 4ゴーストスタット。</p>
+          </div>
+          <div class="output-item">
+            <div class="output-icon">🗺️</div>
+            <div class="output-name">インタラクティブマップ</div>
+            <div class="output-fmt">patent_map_interactive.html</div>
+            <p style="font-size:11px;color:var(--medium-gray);margin-top:8px">Plotlyベース。ホバーで特許詳細・クラスタ色分け。ブラウザで閲覧可能。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /flow-wrapper -->
+
+  <!-- ===== Design Principles ===== -->
+  <div style="margin-top:64px;margin-bottom:12px" class="section-label">設計思想</div>
+  <div class="principles">
+    <div class="principle-card">
+      <div class="principle-num">01</div>
+      <div class="principle-title">二系統アーキテクチャ</div>
+      <p class="principle-body">
+        APOLLOアプリ（Streamlit）はデータ処理・可視化に特化し、
+        レポート生成はClaudeCode（外部AI）に完全委譲する。
+        VOYAGERはGemini APIで「骨格10%」、
+        CAPCOMはClaudeCodeで「本格レポート90%」を担当する。
+      </p>
+    </div>
+    <div class="principle-card">
+      <div class="principle-num">02</div>
+      <div class="principle-title">事前計算によるトークン効率</div>
+      <p class="principle-body">
+        転換点検出・異常行動検出などの重い計算はPythonスクリプトが先行実行する。
+        ClaudeCodeはJSONを読むだけ（+~2,000トークン）。
+        WebSearchは既存フローに乗せ、追加コストをほぼゼロに抑える。
+      </p>
+    </div>
+    <div class="principle-card">
+      <div class="principle-num">03</div>
+      <div class="principle-title">品質ゲートによる完了保証</div>
+      <p class="principle-body">
+        各フェーズに機械的なゲートスクリプトを置き、
+        「AIの質的判断による上書き」を禁止する。
+        代表特許15件・出願人5社・最低行数はシェルスクリプトで客観判定される。
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== Token Table ===== -->
+  <div class="token-section">
+    <div class="token-title">トークン消費内訳（参考）</div>
+    <table class="token-table">
+      <thead>
+        <tr>
+          <th>処理</th>
+          <th>方式</th>
+          <th>追加トークン</th>
+          <th>備考</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>スクリプト実行（8本）</td>
+          <td>bash run_scripts.sh</td>
+          <td class="token-zero">0</td>
+          <td>Python側で処理、AIは関与しない</td>
+        </tr>
+        <tr>
+          <td>JSON読み込み（転換点・異常行動）</td>
+          <td>Read ツール</td>
+          <td class="token-low">~2,000</td>
+          <td>事前計算済み結果を参照するだけ</td>
+        </tr>
+        <tr>
+          <td>Web調査（転換点裏取り）</td>
+          <td>WebSearch（既存フロー）</td>
+          <td class="token-med">~5,000–10,000</td>
+          <td>ユーザー確認後に実行。事前生成クエリを使用</td>
+        </tr>
+        <tr>
+          <td>Deep Dive執筆（Phase C）</td>
+          <td>生成</td>
+          <td class="token-med">最大使用量</td>
+          <td>品質のためのトークン消費は許容</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div><!-- /content -->
+
+<footer>
+  APOLLO v8.0.0 — 特許分析プラットフォーム &nbsp;|&nbsp; Architecture Overview
+</footer>
+
+<script>
+function toggle(el) {
+  el.classList.toggle('open');
+}
+// デフォルトで全ステージを開いた状態にする
+document.querySelectorAll('.stage').forEach(function(s) {
+  s.classList.add('open');
+});
+</script>
+</body>
+</html>
