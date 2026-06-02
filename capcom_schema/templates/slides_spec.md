@@ -1,5 +1,12 @@
-# PPTスライド仕様書 v6.1 — エディトリアル品質（モノトーン＋クリムゾン）+ ポンチ絵完全対応
+# PPTスライド仕様書 v6.2 — エディトリアル品質（モノトーン＋クリムゾン）+ ネイティブ図表 + 精読/総括
 
+> **v6.2 追加（2026-06 / Deep Dive完全化）**
+> - **ネイティブ編集可能チャート** `add_bar_chart_slide`（python-pptxのグラフ機能をブランド配色でフル活用。
+>   数表データを画像でなく"生きたグラフ"に。系列色／点別色で注目点をクリムゾン1点に）
+> - **原文エビデンス** `add_evidence_slide`（精読した要約＝【課題】【解決手段】を逐語引用しファクト化）
+> - **俯瞰起点の集中精読**を章として確立（精読の設計図＝俯瞰シグナル→対象→件数を明示／重要ノイズも対象）
+> - **最終「総括」章**を必須化（可視化＋精読を統合した最終考察→意思決定の含意・反証・監視指標）
+>
 > **v6.1 改良（2026-06 / 実運用フィードバック反映）**
 > 1. タイトル上の短い赤罫（EYEBROW罫）を**廃止**（視覚ノイズ削減）
 > 2. タイトルは**32文字以内・1行厳守**（超過時 `add_title_shape` が `[WARN]`）
@@ -2539,6 +2546,114 @@ def add_applicant_profile_slide(prs, title, sub_message, profiles, blank,
             rr.font.color.rgb = DARK_GRAY; _apply_font(rr); p.line_spacing = 1.3
         y += card_h + gap
 
+    if source:
+        add_source_label(slide, source)
+    add_bottom_bar_and_footer(slide, page_num)
+    return slide
+```
+
+---
+
+### 3.19 ネイティブ・チャートスライド（編集可能グラフ・改良/見せ方）
+
+> python-pptx の**ネイティブ・グラフ**（PowerPoint上で編集可能）を、ブランド配色
+> （墨グレー＋クリムゾン1点）で描く。スナップショット画像が無い数表データ
+> （ステータス×年次・クラスタ別件数など）を「画像ではなく生きたグラフ」で見せる。
+
+```python
+from pptx.chart.data import CategoryChartData
+from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION
+
+def _style_chart(chart, colors=None, point_colors=None, font_pt=11):
+    """系列色・点別色・フォントをブランド配色で整える。"""
+    try:
+        chart.font.size = Pt(font_pt); chart.font.name = JA_FONT
+    except Exception:
+        pass
+    for si, ser in enumerate(chart.series):
+        if point_colors:  # 単一系列で点別に色（注目点をクリムゾン）
+            for pi, pc in enumerate(point_colors):
+                try:
+                    pt = ser.points[pi]; pt.format.fill.solid(); pt.format.fill.fore_color.rgb = pc
+                except Exception:
+                    pass
+        elif colors:
+            ser.format.fill.solid(); ser.format.fill.fore_color.rgb = colors[si % len(colors)]
+
+def add_bar_chart_slide(prs, title, sub_message, categories, series, blank,
+                        stacked=False, colors=None, point_colors=None,
+                        annotations=None, source=None, page_num=None, chart_ratio=0.62):
+    """ネイティブ棒グラフ + 右に注釈（見せ方の主役・編集可能）。
+
+    series: [("系列名", [v,...]), ...]（単一系列なら point_colors で注目点を赤に）
+    colors: 系列ごとの色（既定 墨グレー段階＋クリムゾン）。stacked=True で積み上げ。
+    """
+    slide = prs.slides.add_slide(blank)
+    sub_y = add_title_shape(slide, title)
+    content_y = add_sub_message(slide, sub_message, y=sub_y)
+    has_text = bool(annotations)
+    gap = 0.3
+    chart_w = (CONTENT_W + 0.5) * (chart_ratio if has_text else 1.0) - (gap/2 if has_text else 0)
+    chart_x = MARGIN_L
+    chart_h = 6.5 - content_y
+    cd = CategoryChartData()
+    cd.categories = categories
+    for name, vals in series:
+        cd.add_series(name, vals)
+    ctype = XL_CHART_TYPE.COLUMN_STACKED if stacked else XL_CHART_TYPE.COLUMN_CLUSTERED
+    gf = slide.shapes.add_chart(ctype, Inches(chart_x), Inches(content_y),
+                                Inches(chart_w), Inches(chart_h), cd)
+    chart = gf.chart
+    chart.has_title = False
+    if len(series) > 1:
+        chart.has_legend = True; chart.legend.position = XL_LEGEND_POSITION.BOTTOM
+        chart.legend.include_in_layout = False
+    else:
+        chart.has_legend = False
+    default_cols = [DEEP_RED, MEDIUM_GRAY, BAR_OLD, INK]
+    _style_chart(chart, colors=colors or default_cols, point_colors=point_colors)
+    try:
+        chart.plots[0].gap_width = 70
+    except Exception:
+        pass
+    if has_text:
+        tx = MARGIN_L + chart_w + gap
+        add_annotation_block(slide, annotations, tx, content_y,
+                             (CONTENT_W + 0.5) * (1 - chart_ratio) - gap/2, chart_h - 0.2, font_size=13)
+    if source:
+        add_source_label(slide, source)
+    add_bottom_bar_and_footer(slide, page_num)
+    return slide
+```
+
+### 3.20 原文エビデンススライド（読んだ要約の逐語引用・ファクト）
+
+> 「精読した」と書くだけでなく、**実際に読んだ要約（【課題】【解決手段】）を逐語で小さく引用**し、
+> 結論の根拠をファクトとして残す。請求項の全文がデータに無い場合は要約（解決手段＝請求項要旨に相当）を引く。
+
+```python
+def add_evidence_slide(prs, title, sub_message, items, blank,
+                       label="読んだ原文（要約抜粋）", source=None, page_num=None):
+    """逐語引用の証拠頁。items=[{"head":"[番号] 出願人 — 名称", "quote":"要約全文"}]。
+    1頁3-4件。番号は赤・小、引用は墨の小フォント（9-10pt）。"""
+    slide = prs.slides.add_slide(blank)
+    sub_y = add_title_shape(slide, title, label=label)
+    content_y = add_sub_message(slide, sub_message, y=sub_y) if sub_message else sub_y + 0.1
+    n = max(1, len(items)); gap = 0.16
+    h = (6.7 - content_y - gap * (n - 1)) / n
+    y = content_y
+    for it in items:
+        card = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(MARGIN_L), Inches(y),
+                                      Inches(CONTENT_W), Inches(h))
+        card.fill.solid(); card.fill.fore_color.rgb = PALE_GRAY; card.line.fill.background()
+        bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(MARGIN_L), Inches(y), Emu(36576), Inches(h))
+        bar.fill.solid(); bar.fill.fore_color.rgb = ACCENT; bar.line.fill.background()
+        hd = slide.shapes.add_textbox(Inches(MARGIN_L + 0.18), Inches(y + 0.06), Inches(CONTENT_W - 0.36), Inches(0.3))
+        set_text(hd.text_frame.paragraphs[0], it.get("head", ""), Pt(11.5), ACCENT, bold=True)
+        qt = slide.shapes.add_textbox(Inches(MARGIN_L + 0.18), Inches(y + 0.38), Inches(CONTENT_W - 0.40), Inches(h - 0.44))
+        tf = qt.text_frame; tf.word_wrap = True; tf.auto_size = MSO_AUTO_SIZE.NONE
+        set_text(tf.paragraphs[0], "「" + it.get("quote", "") + "」", Pt(9.5), DARK_GRAY, line_spacing=1.18)
+        y += h + gap
     if source:
         add_source_label(slide, source)
     add_bottom_bar_and_footer(slide, page_num)
