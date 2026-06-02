@@ -1,5 +1,12 @@
 # APOLLO v8.0.0 — 特許分析プラットフォーム
 
+## ⚠️ PPTX／スライド作成は必ず apollo-pptx スキルを最初から使う（最優先）
+- ユーザーが「PPTX／PowerPoint／スライド／プレゼン資料を作って」と依頼、または `/pptx` を実行したら、
+  **他のどの作業よりも先に、最初から `apollo-pptx` スキル（`.claude/skills/apollo-pptx/SKILL.md`）を起動する**。
+- データ調査・自前のpython-pptx記述を**先に始めない**。スキル発動 → `capcom_schema/templates/slides_spec.md`（現行 v6.1）を読む → 着手、の順を厳守。
+- スキルを使わず素のpython-pptxで自己流に組むことを禁止（配色・用語ルール・品質ゲートが崩れるため）。
+- 仕様が複数あっても、本スキルが指す `slides_spec.md` を唯一の正とする。
+
 ## 言語設定
 - 常に日本語で会話する
 - コメントも日本語で記述する
