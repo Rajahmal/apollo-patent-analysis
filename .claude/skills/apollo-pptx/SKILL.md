@@ -13,14 +13,14 @@ command: /pptx
 - 「PPTXを作って」「スライドにして」「プレゼン資料を作成」「`/pptx`」等を検知した時点で、
   **データ調査や自前のpython記述を始める前に**本スキルを発動し、`slides_spec.md` を読み込んでから着手する。
 - スキルを使わず素のpython-pptxで自己流に組むことを禁止する（品質・配色・用語ルールが崩れるため）。
-- 別系統の仕様（旧v5.0 NAVY配色など）が混在していても、**本スキルが指す `slides_spec.md`（現行 v6.1）を正**とする。
+- 別系統の仕様（旧v5.0 NAVY配色など）が混在していても、**本スキルが指す `slides_spec.md`（現行 v6.3）を正**とする。
 
 ## ⚠️ 優先順位ルール（最重要・厳守）
 
 **スライド生成時は `capcom_schema/templates/slides_spec.md` を最優先で参照すること。**
 
 - 本SKILL.mdの記述（関数名・スライド比率・ポンチ絵パターン数・カラー定義など）と `slides_spec.md` の記述が**矛盾する場合、必ず `slides_spec.md` を採用する**
-- 本SKILL.mdは概要・起動条件・運用ルールを示すメタ文書であり、実装仕様の正は `slides_spec.md`（現行 v6.1、スライドタイプ15種＋考察系）にある
+- 本SKILL.mdは概要・起動条件・運用ルールを示すメタ文書であり、実装仕様の正は `slides_spec.md`（現行 v6.3、スライドタイプ15種＋考察系＋発見の道筋）にある
 - 関数名の例: SKILL.md が `add_process_flow()` / `add_matrix_2x2()` などを記載していても、実際は `slides_spec.md` の `add_process_slide()` / `add_matrix_slide()` 等を使用すること
 
 ### v6.1 仕様の要点（実運用フィードバック反映・詳細は slides_spec.md 冒頭）
@@ -111,7 +111,20 @@ BORDER_GRAY: #D8DADD  (罫線)
   無ければ `capcom_schema/analysis/{deep_dive_guide,common_framework,cross_module,report_structure,quality_checklist,terminology}.md` と
   セッションの `prompts/`（**最低3件**）・`data/patents.csv` を読み、その場で Deep Dive級を生成。
 - **新スライド型**: `add_insight_slide`（4層考察頁）/ `add_patent_micro_slide`（代表特許）/
-  `add_applicant_profile_slide`（出願人プロファイル各5行以上）。
+  `add_applicant_profile_slide`（出願人プロファイル各5行以上）/
+  `add_semantic_map_slide`（**意味マップ**＝UMAP散布図で外れ領域を可視化）/
+  `add_method_flow_slide`（**発見の道筋**＝分析ロジックを横フローで図解）。
+- **意味マップスライド（`add_semantic_map_slide`・推奨）**: `umap_x/umap_y/cluster` があれば、
+  SBERT意味空間でのクラスタ布置を**実データのまま散布図**で描き、『件数の主役（成熟・縮小）』と
+  『意味的に外れた萌芽領域（急伸）』を対比する。点と破線リングはPILで描画し、日本語注釈はpptxの
+  リーダー線付きピルで重ねる（**matplotlib不要・日本語フォント非依存**）。「マッピングして説明する」＝
+  APOLLO固有の掬い方を一目で示す主役級スライド。発見の道筋（下記）と対で総括の直前に置く。
+- **発見の道筋スライド（`add_method_flow_slide`・推奨）**: 「すごい分析」ほど結果だけ淡々と並べると
+  凄さが伝わらない。**結論そのものでなく、そこへ辿り着いた“順路”**（俯瞰→勢いで篩う→逆転発見→精読で裏取り 等）
+  を3-5枚のカード＋クリムゾン矢印で1-2枚に図解すると、APOLLO固有の掬い方が一目で伝わる。
+  **新しい分析・ランキングは作らず**、既出のクラスタ件数・CAGR・代表特許を「どう掬ったか」の物語として
+  再構成するだけ。**総括（結論）の直前**に置くと効果的。仮説の根拠が薄い場合は、フロー内で
+  「堅い軸／初期シグナル」と**強弱を明示**して過大評価を避ける（誠実さの担保）。
 - **考察生成プロトコル（最重要・slides_spec.md §7.5）**: スライドを書く前に「観察→因果仮説2案以上→
   横断統合(So What)→意思決定示唆＋反証→So-Whatセルフテスト」を**実際に思考してから**考察を書く。
   **JSON・統計・レポートの言い換えを並べることは禁止**。各考察頁に非自明な主張を最低1つ、

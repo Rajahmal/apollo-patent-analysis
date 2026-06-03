@@ -1,5 +1,18 @@
-# PPTスライド仕様書 v6.2 — エディトリアル品質（モノトーン＋クリムゾン）+ ネイティブ図表 + 精読/総括
+# PPTスライド仕様書 v6.3 — エディトリアル品質（モノトーン＋クリムゾン）+ ネイティブ図表 + 精読/総括
 
+> **v6.3 追加（2026-06 / 分析ロジックの可視化 + 章目印の精緻化）**
+> - **意味マップスライド** `add_semantic_map_slide`（UMAP散布図を実データ `umap_x/umap_y/cluster` から
+>   PILで描画し、『件数の主役』と『意味的に外れた萌芽領域』を対比。破線リングで萌芽の独立性を強調、
+>   日本語注釈はリーダー線付きピルでpptx重ね＝**matplotlib不要・フォント非依存**。`_render_umap_scatter` 同梱）
+> - **発見の道筋スライド** `add_method_flow_slide`（分析がどの順路で結論に辿り着いたかを横フロー＝
+>   **長方形カード**＋クリムゾン矢印で1-2枚に図解。**新しい分析を足さず**既出の数値を「掬い方」の物語に再構成。
+>   総括の直前にマップと対で置く。仮説の根拠が薄い軸は「堅い軸／初期シグナル」と強弱明示し過大評価を防ぐ。
+>   見出しは『深掘り』等の平凡語でなく『意味空間マッピング／動態スクリーニング』等の具体名で高度に見せる）
+> - **章目印（左端プログレスゲージ）を精緻化** `add_chapter_marker`：①全章ぶんの**平行四辺形セル**に分割し
+>   **章ごとに切れ目**を入れる ②点灯セルは**同色クリムゾンのまま半透明**（約42%）③現在章マーカーの
+>   突起・幅広ドットを**廃止**（現在章＝最後に点灯したセル、**バーと同じ幅**に統一）。半透明化ヘルパー
+>   `_set_fill_alpha(shp, alpha_pct)` を追加（ソリッド塗りの色相を保ったまま不透明度を設定）
+>
 > **v6.2 追加（2026-06 / Deep Dive完全化）**
 > - **ネイティブ編集可能チャート** `add_bar_chart_slide`（python-pptxのグラフ機能をブランド配色でフル活用。
 >   数表データを画像でなく"生きたグラフ"に。系列色／点別色で注目点をクリムゾン1点に）
@@ -276,11 +289,11 @@ AMBER = BAR_MID                         # 旧・注意 → 中間グレー
 from pptx import Presentation
 from pptx.util import Inches, Pt, Emu
 from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_ALIGN, MSO_AUTO_SIZE
-from pptx.enum.shapes import MSO_SHAPE, MSO_SHAPE_TYPE
-from PIL import Image
+from pptx.enum.text import PP_ALIGN, MSO_AUTO_SIZE, MSO_ANCHOR
+from pptx.enum.shapes import MSO_SHAPE, MSO_SHAPE_TYPE, MSO_CONNECTOR
+from PIL import Image, ImageDraw
 from lxml import etree
-import os, re, sys
+import os, re, sys, tempfile
 
 # --- フォント設定（欧文=Century Gothic / 和文=Yu Gothic） ---
 # 環境にCentury Gothicが無い場合に備え、利用側でフォールバックを考慮すること
@@ -562,24 +575,48 @@ def grad_rect(slide, x, y, w, h, c1, c2, angle=90, radius=0.0):
 CURRENT_CHAPTER = 0
 TOTAL_CHAPTERS = 0
 
+def _set_fill_alpha(shp, alpha_pct):
+    """ソリッド塗りシェイプに不透明度（0-100%）を設定する。色相は保ったまま半透明化する。"""
+    sp = shp._element.spPr
+    fill = sp.find(f'{{{A_NS}}}solidFill')
+    if fill is None:
+        return
+    srgb = fill.find(f'{{{A_NS}}}srgbClr')
+    if srgb is None:
+        return
+    for a in srgb.findall(f'{{{A_NS}}}alpha'):
+        srgb.remove(a)
+    al = etree.SubElement(srgb, f'{{{A_NS}}}alpha')
+    al.set('val', str(int(alpha_pct * 1000)))   # 0-100% → 0-100000
+
+
 def add_chapter_marker(slide):
-    """章目印（パターン③）：左端に縦プログレスバー。バーのX中心をスライド左端(x=0)に重ね、
-    上から現在章ぶんだけクリムゾン・グラデで満ちる＋現在章ドット。テキストは書かない。"""
+    """章目印（パターン③・改）：左端に縦プログレスゲージ。バーのX中心をスライド左端(x=0)に重ねる。
+    全章ぶんの **平行四辺形セル** に分割し（章ごとに切れ目）、1〜現在章のセルを **同色クリムゾンの半透明** で
+    点灯する。現在章は最後に点灯したセルそのもの（突起・幅違いのドットは作らない＝バーと同じ幅）。テキストは書かない。"""
     if not (CURRENT_CHAPTER > 0 and TOTAL_CHAPTERS > 0):
         return
     bw = 0.20                 # バー幅（半分は画面外＝中心線が x=0）
     x = -bw / 2.0
     top, bot = 0.55, 7.0
     Hb = bot - top
-    track = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(x), Inches(top), Inches(bw), Inches(Hb))
-    try: track.adjustments[0] = 0.5
-    except Exception: pass
-    track.fill.solid(); track.fill.fore_color.rgb = RGBColor(0xE6, 0xE8, 0xEC); track.line.fill.background()
-    fillh = Hb * (CURRENT_CHAPTER / float(TOTAL_CHAPTERS))
-    grad_rect(slide, x, top, bw, fillh, ACCENT, DEEP_RED, angle=90, radius=0.5)
-    seg = Hb / TOTAL_CHAPTERS
-    cy = top + (CURRENT_CHAPTER - 0.5) * seg
-    dot = grad_rect(slide, x - 0.07, cy - 0.16, 0.34, 0.34, ACCENT, DEEP_RED, angle=120, radius=0.5)
+    N = int(TOTAL_CHAPTERS)
+    gap = 0.045               # 章ごとの切れ目
+    seg = (Hb - gap * (N - 1)) / N
+    for i in range(N):
+        n = i + 1
+        y = top + i * (seg + gap)
+        cell = slide.shapes.add_shape(
+            MSO_SHAPE.PARALLELOGRAM, Inches(x), Inches(y), Inches(bw), Inches(seg))
+        try: cell.adjustments[0] = 0.45   # 平行四辺形の傾き
+        except Exception: pass
+        cell.line.fill.background()
+        cell.fill.solid()
+        if n <= CURRENT_CHAPTER:
+            cell.fill.fore_color.rgb = ACCENT          # いまの色のまま
+            _set_fill_alpha(cell, 42)                  # 半透明（約42%）
+        else:
+            cell.fill.fore_color.rgb = RGBColor(0xE6, 0xE8, 0xEC)  # 未読＝淡グレー
 
 
 def add_bottom_bar_and_footer(slide, page_num=None):
@@ -2495,6 +2532,236 @@ def add_insight_slide(prs, title, sub_message, layers, blank,
         add_rich_runs(tf.paragraphs[0], lyr.get("body", ""), base_size=Pt(13),
                       base_color=DARK_GRAY, bold_color=INK, line_spacing=1.4)
         y += block_h + gap
+
+    if source:
+        add_source_label(slide, source)
+    add_bottom_bar_and_footer(slide, page_num)
+    return slide
+```
+
+### 3.16a 意味マップスライド（UMAP散布図で“外れ領域の検出”を可視化）
+
+> 分析ロジックは**言葉だけでなく実データのマップ**で示すと一気に説得力が出る。
+> `umap_x/umap_y/cluster` があれば、SBERT意味空間でのクラスタ布置をそのまま描き、
+> 『件数の主役』と『意味的に外れた萌芽領域』を対比できる。点と破線リングはPILで描画し、
+> 日本語注釈はpptxのテキストで重ねる（matplotlibや日本語フォントに依存しない）。
+> **必要パッケージにmatplotlibは不要**（Pillowのみ）。発見の道筋スライドと対で総括の直前に置く。
+
+```python
+def _render_umap_scatter(points, kinds, ring_cid, out_path, w=2040, h=860):
+    """意味マップ（UMAP散布図）をPILで描く。日本語注釈はpptx側で重ねるため画像は点と
+    破線リングのみ（フォント非依存）。
+    points: [(x, y, cid)] / kinds: {cid: 'emerging'|'mature'|'growth'} / ring_cid: 囲むクラスタID。
+    """
+    ACC = (0xC5, 0x12, 0x12); MATURE = (0x4D, 0x50, 0x55)
+    GROW = (0x90, 0x94, 0x99); FAINT = (0xCE, 0xD2, 0xD7)
+    KCOL = {"emerging": ACC, "mature": MATURE, "growth": GROW}
+    KRAD = {"emerging": 11, "mature": 7, "growth": 7}
+    KORD = {"emerging": 4, "mature": 3, "growth": 2}
+    SS = 2
+    cw, ch = w * SS, h * SS
+    im = Image.new("RGBA", (cw, ch), (255, 255, 255, 0))
+    dr = ImageDraw.Draw(im)
+    xs = [p[0] for p in points]; ys = [p[1] for p in points]
+    xmin, xmax = min(xs), max(xs); ymin, ymax = min(ys), max(ys)
+    padx = (xmax - xmin) * 0.07 or 1.0; pady = (ymax - ymin) * 0.10 or 1.0
+    xmin -= padx; xmax += padx; ymin -= pady; ymax += pady
+    def tx(x): return (x - xmin) / (xmax - xmin) * cw
+    def ty(y): return (1 - (y - ymin) / (ymax - ymin)) * ch
+    for p in sorted(points, key=lambda p: KORD.get(kinds.get(p[2]), 0)):
+        x, y, cid = p; k = kinds.get(cid)
+        c = KCOL.get(k, FAINT); r = KRAD.get(k, 5) * SS
+        cx, cy = tx(x), ty(y)
+        a = 235 if k == "emerging" else (185 if k == "mature" else 150)
+        dr.ellipse([cx - r, cy - r, cx + r, cy + r], fill=c + (a,))
+    if ring_cid is not None:
+        cc = [(tx(x), ty(y)) for x, y, cid in points if cid == ring_cid]
+        if cc:
+            ox = sum(p[0] for p in cc) / len(cc); oy = sum(p[1] for p in cc) / len(cc)
+            rr = max(((p[0] - ox) ** 2 + (p[1] - oy) ** 2) ** 0.5 for p in cc) + 30 * SS
+            for ang in range(0, 360, 9):
+                dr.arc([ox - rr, oy - rr, ox + rr, oy + rr], ang, ang + 5,
+                       fill=ACC + (255,), width=3 * SS)
+    im = im.resize((w, h), Image.LANCZOS)
+    im.save(out_path)
+    return w / float(h)   # アスペクト比（w/h）
+
+
+def add_semantic_map_slide(prs, title, sub_message, points, callouts, blank,
+                           label="意味マップ", source=None, page_num=None,
+                           footnote=None, ring_cid=None):
+    """意味マップ（UMAP散布図）スライド。SBERT意味空間でのクラスタ布置を実データで描き、
+    『件数の主役』と『意味的に外れた萌芽領域』を対比して、APOLLO固有の掬い方を可視化する。
+
+    points: [(umap_x, umap_y, cid)] 全件。
+    callouts: [{"cid":"0","text":"[0] 萌芽 ＋38%","kind":"emerging",
+                "anchor":(fx,fy),"box":(fx,fy)}]
+       kind=emerging(クリムゾン)/mature(濃灰)/growth(中灰)。anchor=クラスタ重心の
+       マップ内分率(0-1)、box=ラベル位置の分率。callout に挙げた cid だけ着色、他は淡灰。
+    ring_cid: 破線リングで囲むクラスタID（萌芽の独立性を強調・任意）。
+    """
+    slide = prs.slides.add_slide(blank)
+    sub_y = add_title_shape(slide, title, label=label)
+    content_y = add_sub_message(slide, sub_message, y=sub_y) if sub_message else sub_y + 0.1
+
+    kinds = {c["cid"]: c.get("kind", "emerging") for c in callouts}
+    tmp = os.path.join(tempfile.gettempdir(), "apollo_umap_story.png")
+    ar = _render_umap_scatter(points, kinds, ring_cid, tmp)   # w/h
+
+    # マップを領域内にアスペクト比保持で配置
+    bot = 6.30 if footnote else 6.55
+    max_w = CONTENT_W; max_h = bot - content_y - 0.05
+    mw = max_w; mh = mw / ar
+    if mh > max_h:
+        mh = max_h; mw = mh * ar
+    mx = MARGIN_L + (max_w - mw) / 2.0; my = content_y + 0.02
+    slide.shapes.add_picture(tmp, Inches(mx), Inches(my), Inches(mw), Inches(mh))
+
+    KCOL = {"emerging": ACCENT, "mature": RGBColor(0x4D, 0x50, 0x55),
+            "growth": RGBColor(0x90, 0x94, 0x99)}
+    for c in callouts:
+        kc = KCOL.get(c.get("kind"), ACCENT)
+        ax = mx + c["anchor"][0] * mw; ay = my + c["anchor"][1] * mh
+        bx = mx + c["box"][0] * mw;    by = my + c["box"][1] * mh
+        # 重心マーカー（小さな塗り点）
+        mk = slide.shapes.add_shape(MSO_SHAPE.OVAL, Inches(ax - 0.05), Inches(ay - 0.05),
+                                    Inches(0.10), Inches(0.10))
+        mk.fill.solid(); mk.fill.fore_color.rgb = kc; mk.line.fill.background()
+        # リーダー線（マーカー→ラベル）
+        try:
+            ln = slide.shapes.add_connector(MSO_CONNECTOR.STRAIGHT,
+                                            Inches(ax), Inches(ay), Inches(bx), Inches(by))
+            ln.line.color.rgb = kc; ln.line.width = Pt(1.0)
+        except Exception:
+            pass
+        # ラベルピル（長方形・左に色バー・白半透明地）
+        txt = c.get("text", "")
+        pw = min(3.5, 0.20 + len(txt) * 0.135); ph = 0.40
+        px = max(mx, min(bx - pw / 2, mx + mw - pw)); py = by - ph / 2
+        pill = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(px), Inches(py),
+                                      Inches(pw), Inches(ph))
+        pill.fill.solid(); pill.fill.fore_color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+        _set_fill_alpha(pill, 90); pill.line.color.rgb = kc; pill.line.width = Pt(1.0)
+        lbar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(px), Inches(py),
+                                      Emu(36576), Inches(ph))
+        lbar.fill.solid(); lbar.fill.fore_color.rgb = kc; lbar.line.fill.background()
+        tb = slide.shapes.add_textbox(Inches(px + 0.14), Inches(py + 0.03),
+                                      Inches(pw - 0.18), Inches(ph - 0.06))
+        tf = tb.text_frame; tf.word_wrap = False; tf.auto_size = MSO_AUTO_SIZE.NONE
+        tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+        set_text(tf.paragraphs[0], txt, Pt(11.5), INK, bold=True)
+
+    if footnote:
+        fbar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(MARGIN_L), Inches(bot + 0.06),
+                                      Emu(36576), Inches(0.34))
+        fbar.fill.solid(); fbar.fill.fore_color.rgb = ACCENT; fbar.line.fill.background()
+        ft = slide.shapes.add_textbox(Inches(MARGIN_L + 0.18), Inches(bot + 0.04),
+                                      Inches(CONTENT_W - 0.18), Inches(0.4))
+        ftt = ft.text_frame; ftt.word_wrap = True; ftt.auto_size = MSO_AUTO_SIZE.NONE
+        set_text(ftt.paragraphs[0], footnote, Pt(12.5), INK, bold=True, line_spacing=1.2)
+
+    if source:
+        add_source_label(slide, source)
+    add_bottom_bar_and_footer(slide, page_num)
+    return slide
+```
+
+> **注**: `add_semantic_map_slide` は `MSO_CONNECTOR`（pptx.enum.shapes）/ `MSO_ANCHOR`（pptx.enum.text）/
+> `ImageDraw`（PIL）を使う。`tempfile` も import 済みであること。
+
+### 3.16b 発見の道筋スライド（分析ロジックを横フローで示す）
+
+> 「すごい分析」ほど淡々と結果だけ並べると凄さが伝わらない。**結論そのものではなく、
+> その結論に辿り着いた“順路”**を1-2枚で図解すると、APOLLO固有の掬い方が一目で伝わる。
+> 重要: **新しい分析・新しいランキングを作らない**。既出のクラスタ件数・CAGR・代表特許を
+> 「どう掬ったか」の物語として再構成するだけ。総括（結論）の直前に置くのが効果的。
+> マップ（3.16a）と対で使うと「外れ領域を実データで示す→手順で説明する」の流れになり強い。
+
+```python
+def add_method_flow_slide(prs, title, sub_message, steps, blank,
+                          label="分析ロジック", source=None, page_num=None,
+                          footnote=None):
+    """発見の道筋（横フロー／ファネル）。分析がどの順路で結論に辿り着いたかを左→右で示す専用頁。
+    各ステップ＝縦長カード、間をクリムゾン矢印で連結。
+
+    steps: [{"no":"01", "head":"俯瞰", "what":"全○件を意味で地図化",
+             "detail":"SBERT→UMAP→クラスタ化（具体1-2行）", "metric":"458件"}]
+      3-5ステップ推奨。no=連番、head=短い動詞（4-6字・明朝）、what=その操作（赤の小見出し1行）、
+      detail=具体（墨・1-2行）、metric=右肩の件数等（任意・赤チップ）。
+    footnote: カード群の下に置く締めの1行（任意・墨太）。
+    """
+    n = max(1, len(steps))
+    if n > 5:
+        print(f"[WARN] add_method_flow_slide: steps={n} > 5。窮屈になるため5以下推奨")
+    slide = prs.slides.add_slide(blank)
+    sub_y = add_title_shape(slide, title, label=label)
+    content_y = add_sub_message(slide, sub_message, y=sub_y) if sub_message else sub_y + 0.1
+
+    top = content_y + 0.10
+    bot = 6.42 if footnote else 6.7
+    card_h = bot - top
+    arrow_w = 0.42
+    card_w = (CONTENT_W - arrow_w * (n - 1)) / n
+    pad = 0.18
+    for i, st in enumerate(steps):
+        cx = MARGIN_L + i * (card_w + arrow_w)
+        # カード本体（淡グレー面・長方形・影なし）
+        card = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(cx), Inches(top),
+                                      Inches(card_w), Inches(card_h))
+        card.fill.solid(); card.fill.fore_color.rgb = PALE_GRAY; card.line.fill.background()
+        # 上部クリムゾン帯（半透明）＝連番の座
+        band = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(cx), Inches(top),
+                                      Inches(card_w), Inches(0.60))
+        band.fill.solid(); band.fill.fore_color.rgb = ACCENT; band.line.fill.background()
+        _set_fill_alpha(band, 12)
+        # 連番（赤・明朝・大）
+        nob = slide.shapes.add_textbox(Inches(cx + pad), Inches(top + 0.08),
+                                       Inches(card_w - pad * 2), Inches(0.44))
+        set_text(nob.text_frame.paragraphs[0], st.get("no", ""), Pt(20), ACCENT, bold=True, heading=True)
+        # 見出し（墨太・明朝）
+        hb = slide.shapes.add_textbox(Inches(cx + pad), Inches(top + 0.76),
+                                      Inches(card_w - pad * 2), Inches(0.5))
+        set_text(hb.text_frame.paragraphs[0], st.get("head", ""), Pt(17), INK, bold=True, heading=True)
+        # what（赤の小見出し）
+        wb = slide.shapes.add_textbox(Inches(cx + pad), Inches(top + 1.28),
+                                      Inches(card_w - pad * 2), Inches(0.72))
+        wt = wb.text_frame; wt.word_wrap = True; wt.auto_size = MSO_AUTO_SIZE.NONE
+        set_text(wt.paragraphs[0], st.get("what", ""), Pt(12), DEEP_RED, bold=True, line_spacing=1.3)
+        # detail（墨・本文）
+        db = slide.shapes.add_textbox(Inches(cx + pad), Inches(top + 2.02),
+                                      Inches(card_w - pad * 2), Inches(max(0.6, card_h - 2.02 - 0.62)))
+        dt = db.text_frame; dt.word_wrap = True; dt.auto_size = MSO_AUTO_SIZE.NONE
+        add_rich_runs(dt.paragraphs[0], st.get("detail", ""), base_size=Pt(11.5),
+                      base_color=DARK_GRAY, bold_color=INK, line_spacing=1.35)
+        # metric チップ（下部・任意）
+        if st.get("metric"):
+            mh = 0.40
+            my = top + card_h - mh - 0.16
+            chip = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(cx + pad),
+                                          Inches(my), Inches(card_w - pad * 2), Inches(mh))
+            chip.fill.solid(); chip.fill.fore_color.rgb = ACCENT; chip.line.fill.background()
+            mt = slide.shapes.add_textbox(Inches(cx + pad), Inches(my + 0.03),
+                                          Inches(card_w - pad * 2), Inches(mh - 0.04))
+            mp = mt.text_frame.paragraphs[0]
+            set_text(mp, st.get("metric", ""), Pt(13), RGBColor(0xFF, 0xFF, 0xFF), bold=True)
+            mp.alignment = PP_ALIGN.CENTER
+        # 矢印（最後のカード以外）
+        if i < n - 1:
+            ax = cx + card_w
+            arr = slide.shapes.add_textbox(Inches(ax), Inches(top + card_h / 2 - 0.35),
+                                           Inches(arrow_w), Inches(0.7))
+            ap = arr.text_frame.paragraphs[0]
+            ap.alignment = PP_ALIGN.CENTER
+            set_text(ap, "→", Pt(24), ACCENT, bold=True)
+
+    if footnote:
+        fbar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(MARGIN_L), Inches(bot + 0.14),
+                                      Emu(36576), Inches(0.36))
+        fbar.fill.solid(); fbar.fill.fore_color.rgb = ACCENT; fbar.line.fill.background()
+        ft = slide.shapes.add_textbox(Inches(MARGIN_L + 0.18), Inches(bot + 0.12),
+                                      Inches(CONTENT_W - 0.18), Inches(0.4))
+        ftt = ft.text_frame; ftt.word_wrap = True; ftt.auto_size = MSO_AUTO_SIZE.NONE
+        set_text(ftt.paragraphs[0], footnote, Pt(13), INK, bold=True, line_spacing=1.25)
 
     if source:
         add_source_label(slide, source)
