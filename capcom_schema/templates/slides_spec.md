@@ -541,10 +541,52 @@ def add_sub_message(slide, message, x=MARGIN_L, y=None, w=CONTENT_W):
 > （15種スライドが `add_bottom_bar_and_footer(slide, page_num)` を呼ぶ）。
 
 ```python
+def grad_rect(slide, x, y, w, h, c1, c2, angle=90, radius=0.0):
+    """グラデーション矩形（G1グラデの最小取り込み・影なし）。"""
+    shp = slide.shapes.add_shape(
+        MSO_SHAPE.ROUNDED_RECTANGLE if radius > 0 else MSO_SHAPE.RECTANGLE,
+        Inches(x), Inches(y), Inches(w), Inches(h))
+    if radius > 0:
+        try: shp.adjustments[0] = radius
+        except Exception: pass
+    shp.line.fill.background()
+    shp.fill.gradient()
+    gs = shp.fill.gradient_stops
+    gs[0].color.rgb = c1; gs[0].position = 0.0
+    gs[1].color.rgb = c2; gs[1].position = 1.0
+    try: shp.fill.gradient_angle = angle
+    except Exception: pass
+    return shp
+
+# 章目印（現在章の進捗）用グローバル。add_section_slide が CURRENT_CHAPTER を更新する。
+CURRENT_CHAPTER = 0
+TOTAL_CHAPTERS = 0
+
+def add_chapter_marker(slide):
+    """章目印（パターン③）：左端に縦プログレスバー。バーのX中心をスライド左端(x=0)に重ね、
+    上から現在章ぶんだけクリムゾン・グラデで満ちる＋現在章ドット。テキストは書かない。"""
+    if not (CURRENT_CHAPTER > 0 and TOTAL_CHAPTERS > 0):
+        return
+    bw = 0.20                 # バー幅（半分は画面外＝中心線が x=0）
+    x = -bw / 2.0
+    top, bot = 0.55, 7.0
+    Hb = bot - top
+    track = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(x), Inches(top), Inches(bw), Inches(Hb))
+    try: track.adjustments[0] = 0.5
+    except Exception: pass
+    track.fill.solid(); track.fill.fore_color.rgb = RGBColor(0xE6, 0xE8, 0xEC); track.line.fill.background()
+    fillh = Hb * (CURRENT_CHAPTER / float(TOTAL_CHAPTERS))
+    grad_rect(slide, x, top, bw, fillh, ACCENT, DEEP_RED, angle=90, radius=0.5)
+    seg = Hb / TOTAL_CHAPTERS
+    cy = top + (CURRENT_CHAPTER - 0.5) * seg
+    dot = grad_rect(slide, x - 0.07, cy - 0.16, 0.34, 0.34, ACCENT, DEEP_RED, angle=120, radius=0.5)
+
+
 def add_bottom_bar_and_footer(slide, page_num=None):
-    """全スライド共通: 右下のページ番号のみを描画する（帯・フッター・ワードマークは置かない）。
+    """全スライド共通: 右下ページ番号 ＋ 左端の章目印（パターン③）。
     タイトルスライド・セクションスライド・クロージングスライドでは呼ばない。
     """
+    add_chapter_marker(slide)
     if page_num is None:
         return
     # 右下ページ番号のみ（10pt MEDIUM_GRAY・右寄せ）
@@ -895,6 +937,8 @@ def add_section_slide(prs, section_num, title, blank, subtitle=None):
     章番号を右側にフル表示の背景として置き（クリップさせない）、その手前に
     章タイトルを重ねて "舞台の幕間" の存在感を作る（柱0「インパクト演出」）。
     表紙と同じ左端クリムゾン・ストリップでデッキの一貫性を持たせる。"""
+    global CURRENT_CHAPTER
+    CURRENT_CHAPTER = section_num   # 以降の本文頁の章目印に反映
     slide = prs.slides.add_slide(blank)
     bg = slide.background.fill
     bg.solid()
@@ -1153,11 +1197,7 @@ def add_kpi_slide(prs, title, sub_message, kpis, blank,
         card.fill.fore_color.rgb = RGBColor(0xFA, 0xF1, 0xF1) if emph else PALE_GRAY
         card.line.fill.background()  # 枠線なし
 
-        # 上部アクセント帯（強調=クリムゾン / 通常=細いグレー）。左バーは廃止。
-        top = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(x), Inches(y),
-                                     Inches(card_w), Inches(0.07 if emph else 0.05))
-        top.fill.solid(); top.fill.fore_color.rgb = ACCENT if emph else BORDER_GRAY
-        top.line.fill.background()
+        # （カード上部の横長アクセント帯は廃止＝視覚ノイズ削減）
 
         # アイコン（Material Symbols をPNG化して右上に配置・配布先のフォント不要）
         if kpi.get("icon"):
@@ -1182,18 +1222,31 @@ def add_kpi_slide(prs, title, sub_message, kpis, blank,
         tfl = txL.text_frame; tfl.word_wrap = True; tfl.auto_size = MSO_AUTO_SIZE.NONE
         set_text(tfl.paragraphs[0], kpi["label"], Pt(10), MEDIUM_GRAY, bold=True, line_spacing=1.05)
 
-        # 値（特大40pt・強調=クリムゾン / 通常=墨）
-        txV = slide.shapes.add_textbox(Inches(x + 0.16), Inches(y + 0.66),
-                                       Inches(card_w - 0.28), Inches(0.72))
+        # 値（数字＝特大／符号(+−±)・単位(%等)は数字より2サイズ小さく）
+        #   例: "+38%" → "+"と"%"を小さく、"38"を大きく。"鉱物化"等テキストは中サイズ。
+        BIG, SMALL = 44, 28        # 数字＝44pt、符号・単位＝28pt（2サイズ小）
+        col_v = ACCENT if emph else INK
+        m = re.match(r'^\s*([+\-−±▲▼]?)\s*([0-9][0-9.,]*)\s*(.*)$', str(kpi["value"]))
+        txV = slide.shapes.add_textbox(Inches(x + 0.16), Inches(y + 0.60),
+                                       Inches(card_w - 0.28), Inches(0.85))
         pv = txV.text_frame.paragraphs[0]
-        rv = pv.add_run(); rv.text = str(kpi["value"])
-        rv.font.size = Pt(40); rv.font.bold = True
-        rv.font.color.rgb = ACCENT if emph else INK
-        _apply_font(rv, heading=True)
+        if m:
+            lead, num, suf = m.group(1), m.group(2), m.group(3)
+            if lead:
+                r0 = pv.add_run(); r0.text = lead; r0.font.size = Pt(SMALL); r0.font.bold = True
+                r0.font.color.rgb = col_v; _apply_font(r0, heading=True)
+            r1 = pv.add_run(); r1.text = num; r1.font.size = Pt(BIG); r1.font.bold = True
+            r1.font.color.rgb = col_v; _apply_font(r1, heading=True)
+            if suf:
+                r2 = pv.add_run(); r2.text = suf; r2.font.size = Pt(SMALL); r2.font.bold = True
+                r2.font.color.rgb = col_v; _apply_font(r2, heading=True)
+        else:
+            rt0 = pv.add_run(); rt0.text = str(kpi["value"]); rt0.font.size = Pt(30)
+            rt0.font.bold = True; rt0.font.color.rgb = col_v; _apply_font(rt0, heading=True)
         if kpi.get("trend"):
             tr = kpi["trend"]
             tc = ACCENT if ("-" in tr or "↓" in tr or "DOWN" in tr.upper()) else INK
-            rt = pv.add_run(); rt.text = f" {tr}"; rt.font.size = Pt(15)
+            rt = pv.add_run(); rt.text = f" {tr}"; rt.font.size = Pt(SMALL - 4)
             rt.font.bold = True; rt.font.color.rgb = tc; _apply_font(rt)
 
         # 単位（小・グレー）
