@@ -1,4 +1,12 @@
-# PPTスライド仕様書 v6.3 — エディトリアル品質（モノトーン＋クリムゾン）+ ネイティブ図表 + 精読/総括
+# PPTスライド仕様書 v6.4 — エディトリアル品質（モノトーン＋クリムゾン）+ ネイティブ図表 + 精読/総括/統計予測
+
+> **v6.4 追加（2026-06 / 統計予測と「件数を結論にしない」原則）**
+> - **統計予測スライド** `add_forecast_slide`（件数時系列に **線形/指数/ロジスティック** を当て **AICでモデル選択**、
+>   **公開ラグ補正＋95%予測区間** で翌1-2年を外挿。チャート〔観測実線／予測点線／予測リボン／ラグ補正点〕＋
+>   数値テーブルを常に併出。可視化が難しければ表で十分。純Python＋PILのみ・matplotlib/numpy/sklearn不要。
+>   `fit_forecast` `publication_lag_adjust` `_ols` `_pred_interval` `_fit_logistic` `_render_forecast_chart` 同梱）
+> - **原則：件数分析を結論にしない**。「○件多い／前年比」で止めず、**率・シェア・累積カーブ・予測**へ昇格し、
+>   統計的裏付け（モデル・R²・予測区間）と公開ラグ補正を添えて可視化。**n小で見えづらい仮説も点線＋広い区間で必ず示す**。
 
 > **v6.3 追加（2026-06 / 分析ロジックの可視化 + 章目印の精緻化）**
 > - **意味マップスライド** `add_semantic_map_slide`（UMAP散布図を実データ `umap_x/umap_y/cluster` から
@@ -293,7 +301,7 @@ from pptx.enum.text import PP_ALIGN, MSO_AUTO_SIZE, MSO_ANCHOR
 from pptx.enum.shapes import MSO_SHAPE, MSO_SHAPE_TYPE, MSO_CONNECTOR
 from PIL import Image, ImageDraw
 from lxml import etree
-import os, re, sys, tempfile
+import os, re, sys, math, tempfile
 
 # --- フォント設定（欧文=Century Gothic / 和文=Yu Gothic） ---
 # 環境にCentury Gothicが無い場合に備え、利用側でフォールバックを考慮すること
@@ -2768,6 +2776,264 @@ def add_method_flow_slide(prs, title, sub_message, steps, blank,
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 ```
+
+### 3.16c 統計予測スライド（軽量MLフォーキャスト：件数でなく予測と裏付け）
+
+> **件数の多寡を語るのは分析ではない**。鋭い視点を、**統計的な予測（成長モデル選択）＋不確実性（95%予測区間）＋
+> 公開ラグ補正**で裏付け、**可視化**して示す。可視化が難しければ**数値テーブルで十分**（本ヘルパーは常に表も出す）。
+> n が小さく「見えづらい」系列も、予測を**点線＋広い区間**で必ず描き、"仮説が立っている所"を空白にしない。
+> 依存追加なし（純Python＋PIL）。matplotlib/numpy/sklearn 不要。
+
+```python
+def publication_lag_adjust(counts_by_year, asof_year, visibility=(0.55, 0.85)):
+    """直近年の **公開ラグ** を補正する。出願→公開に約18か月かかるため直近年は過小計上。
+    visibility=(直近年の可視率, 1年前の可視率)。観測値を可視率で割り戻して実勢を推定する。"""
+    out = dict(counts_by_year)
+    for k, frac in enumerate(visibility):
+        y = asof_year - k
+        if y in out and frac and frac > 0:
+            out[y] = out[y] / float(frac)
+    return out
+
+
+def _ols(xs, ys):
+    """単回帰 y=a+bx。(a, b, 残差SE, R², Σx, Σx², n) を返す。"""
+    n = len(xs); sx = sum(xs); sy = sum(ys)
+    sxx = sum(x * x for x in xs); sxy = sum(x * y for x, y in zip(xs, ys))
+    den = (n * sxx - sx * sx) or 1e-9
+    b = (n * sxy - sx * sy) / den; a = (sy - b * sx) / n
+    sse = sum((y - (a + b * x)) ** 2 for x, y in zip(xs, ys))
+    se = math.sqrt(sse / max(1, n - 2))
+    sst = sum((y - sy / n) ** 2 for y in ys) or 1e-9
+    return a, b, se, 1 - sse / sst, sx, sxx, n
+
+
+def _pred_interval(x0, a, b, se, sx, sxx, n, z=1.96):
+    """回帰の95%予測区間（点推定, 下限, 上限）。"""
+    xbar = sx / n; sxx_c = (sxx - n * xbar * xbar) or 1e-9
+    half = z * se * math.sqrt(1 + 1.0 / n + (x0 - xbar) ** 2 / sxx_c)
+    yh = a + b * x0
+    return yh, yh - half, yh + half
+
+
+def _fit_logistic(years, ys):
+    """ロジスティック（S字飽和）をK格子探索＋ロジット線形化で当てる。(SSE,K,a,b) or None。"""
+    ymax = max(ys) or 1.0; best = None; K = ymax * 1.2
+    while K <= ymax * 6 + 1e-9:
+        pts = [(x, math.log(v / (K - v))) for x, v in zip(years, ys) if 0 < v < K]
+        if len(pts) >= 3:
+            a, b, se, r2, sx, sxx, n = _ols([p[0] for p in pts], [p[1] for p in pts])
+            sse = sum((v - K / (1 + math.exp(-(a + b * x)))) ** 2 for x, v in zip(years, ys))
+            if best is None or sse < best[0]:
+                best = (sse, K, a, b)
+        K += ymax * 0.3
+    return best
+
+
+def fit_forecast(years, counts, horizon=2, asof_year=None, lag=True,
+                 visibility=(0.55, 0.85)):
+    """件数時系列に対し **線形/指数/ロジスティック** を当て、AICで選択して将来を予測する。
+    公開ラグ補正→モデル選択→95%予測区間まで一気通貫の軽量フォーキャスタ。
+    返り値: {'model','r2','corrected','observed','fit','pi','forecast_years'}。
+    """
+    years = list(years); counts = list(counts)
+    asof_year = asof_year or max(years)
+    cby = dict(zip(years, counts))
+    corrected = publication_lag_adjust(cby, asof_year, visibility) if lag else dict(cby)
+    ys = [corrected[y] for y in years]
+    cand = {}
+    a, b, se, r2, sx, sxx, n = _ols(years, ys)
+    sse = sum((corrected[y] - (a + b * y)) ** 2 for y in years)
+    cand["linear"] = (r2, len(years) * math.log(max(1e-9, sse / len(years))) + 4,
+                      ("linear", (a, b, se, sx, sxx, n)))
+    pos = [(x, math.log(v)) for x, v in zip(years, ys) if v > 0]
+    if len(pos) >= 3:
+        a2, b2, se2, r22, sx2, sxx2, n2 = _ols([p[0] for p in pos], [p[1] for p in pos])
+        sse2 = sum((corrected[y] - math.exp(a2 + b2 * y)) ** 2 for y in years)
+        cand["exp"] = (r22, len(years) * math.log(max(1e-9, sse2 / len(years))) + 4,
+                       ("exp", (a2, b2, se2, sx2, sxx2, n2)))
+    lg = _fit_logistic(years, ys)
+    if lg:
+        sse3, K, a3, b3 = lg
+        cand["logistic"] = (None, len(years) * math.log(max(1e-9, sse3 / len(years))) + 6,
+                            ("logistic", (K, a3, b3)))
+    name = min(cand, key=lambda k: cand[k][1])      # AIC最小
+    kind, prm = cand[name][2]; r2_sel = cand[name][0]
+    fyears = years + [asof_year + i for i in range(1, horizon + 1)]
+    fit = {}; pi = {}
+    for x in fyears:
+        if kind in ("linear", "exp"):
+            a, b, se, sx, sxx, n = prm
+            yh, lo, hi = _pred_interval(x, a, b, se, sx, sxx, n)
+            if kind == "exp":
+                yh, lo, hi = math.exp(yh), math.exp(lo), math.exp(hi)
+        else:
+            K, a, b = prm
+            yh = K / (1 + math.exp(-(a + b * x))); lo, hi = yh * 0.7, yh * 1.3
+        fit[x] = max(0.0, yh); pi[x] = (max(0.0, lo), max(0.0, hi))
+    return {"model": name, "r2": r2_sel, "corrected": corrected, "observed": cby,
+            "fit": fit, "pi": pi, "forecast_years": fyears[len(years):]}
+
+
+def _render_forecast_chart(fits, out_path, w=2200, h=760):
+    """予測チャートをPILで描画（観測=実線+点／予測=点線／95%区間=半透明リボン／ラグ補正点=白抜き）。
+    fits: [{'name','color':(r,g,b),'observed','corrected','fit','pi','forecast_years'}]。
+    日本語の軸ラベル・凡例はpptx側で重ねる。返り値: (xmin, xmax, ymax)。"""
+    SS = 2; pad = 0.05
+    cw, ch = w * SS, h * SS
+    im = Image.new("RGBA", (cw, ch), (255, 255, 255, 0)); dr = ImageDraw.Draw(im)
+    allyears = sorted(set().union(*[set(f["fit"].keys()) | set(f["observed"].keys()) for f in fits]))
+    xmin, xmax = min(allyears), max(allyears)
+    ymax = max(max(f["observed"].values() or [0]) for f in fits)
+    ymax = max(ymax, max(hi for f in fits for (lo, hi) in f["pi"].values())) * 1.12 or 1.0
+    def tx(x): return (pad + (x - xmin) / (xmax - xmin) * (1 - 2 * pad)) * cw
+    def ty(v): return (1 - pad - v / ymax * (1 - 2 * pad)) * ch
+    for g in range(5):
+        gy = ty(ymax * g / 4.0)
+        dr.line([(tx(xmin), gy), (tx(xmax), gy)], fill=(0xE6, 0xE8, 0xEC, 255), width=2)
+    for f in fits:
+        c = f["color"]; oy = sorted(f["observed"].keys()); last_obs = max(oy)
+        fy = [y for y in sorted(f["fit"].keys()) if y >= last_obs]
+        if len(fy) >= 2:
+            top = [(tx(y), ty(f["pi"][y][1])) for y in fy]
+            bot = [(tx(y), ty(f["pi"][y][0])) for y in fy][::-1]
+            dr.polygon(top + bot, fill=c + (40,))
+        pts = [(tx(y), ty(f["observed"][y])) for y in oy]
+        if len(pts) >= 2: dr.line(pts, fill=c + (255,), width=5)
+        for y in oy:
+            x0, y0 = tx(y), ty(f["observed"][y]); r = 7
+            corr = f.get("corrected", {}).get(y)
+            if corr is not None and abs(corr - f["observed"][y]) > 1e-6:
+                dr.ellipse([x0 - r, y0 - r, x0 + r, y0 + r], outline=c + (255,), width=3)
+                yc = ty(corr); dr.ellipse([x0 - r, yc - r, x0 + r, yc + r], fill=c + (130,))
+            else:
+                dr.ellipse([x0 - r, y0 - r, x0 + r, y0 + r], fill=c + (255,))
+        fline = [(tx(y), ty(f["fit"][y])) for y in fy]
+        for i in range(len(fline) - 1):
+            (xa, ya), (xb, yb) = fline[i], fline[i + 1]; steps = 14
+            for s in range(steps):
+                if s % 2: continue
+                t0 = s / steps; t1 = (s + 1) / steps
+                dr.line([(xa + (xb - xa) * t0, ya + (yb - ya) * t0),
+                         (xa + (xb - xa) * t1, ya + (yb - ya) * t1)], fill=c + (255,), width=4)
+    im = im.resize((w, h), Image.LANCZOS); im.save(out_path)
+    return xmin, xmax, ymax
+
+
+def add_forecast_slide(prs, title, sub_message, series, blank,
+                       label="統計予測", horizon=2, source=None, page_num=None,
+                       footnote=None, visibility=(0.55, 0.85)):
+    """統計予測スライド。件数時系列に軽量MLフォーキャスト（モデル選択＋公開ラグ補正＋95%区間）を当て、
+    チャート（観測実線／予測点線／予測リボン）＋数値テーブルで「予測と裏付け」を可視化する。
+
+    series: [{"name":"直接炭酸塩化","data":{2019:0,...,2024:8},"kind":"primary"}]
+      kind=primary(クリムゾン)/secondary(濃灰)。2系列まで推奨。
+    データ点が4年未満の系列はチャートを省略しテーブルのみ（弱い系列も数値で必ず示す）。
+    """
+    PCOL = {"primary": ACCENT, "secondary": RGBColor(0x4D, 0x50, 0x55)}
+    PCOL_T = {"primary": (0xC5, 0x12, 0x12), "secondary": (0x4D, 0x50, 0x55)}
+    slide = prs.slides.add_slide(blank)
+    sub_y = add_title_shape(slide, title, label=label)
+    content_y = add_sub_message(slide, sub_message, y=sub_y) if sub_message else sub_y + 0.1
+
+    fits = []
+    for s in series:
+        d = {int(k): float(v) for k, v in s["data"].items()}; yrs = sorted(d)
+        if len(yrs) < 4:
+            fits.append({"name": s["name"], "kind": s.get("kind", "primary"), "sparse": True,
+                         "observed": d, "fit": {}, "pi": {}, "forecast_years": [], "corrected": {},
+                         "model": "—", "r2": None, "color": PCOL_T.get(s.get("kind", "primary"))})
+            continue
+        fc = fit_forecast(yrs, [d[y] for y in yrs], horizon=horizon, visibility=visibility)
+        fc.update({"name": s["name"], "kind": s.get("kind", "primary"),
+                   "color": PCOL_T.get(s.get("kind", "primary")), "sparse": False})
+        fits.append(fc)
+
+    drawable = [f for f in fits if not f["sparse"]]
+    table_top = content_y + 0.10
+    if drawable:
+        tmp = os.path.join(tempfile.gettempdir(), "apollo_forecast.png")
+        CW_PX, CH_PX = 2200, 760
+        xmin, xmax, ymax = _render_forecast_chart(drawable, tmp, w=CW_PX, h=CH_PX)
+        ratio = float(CH_PX) / CW_PX
+        ch_h = min(2.5, (6.05 if footnote else 6.45) - content_y - 2.0)
+        ch_w = CONTENT_W
+        if ch_w * ratio > ch_h: ch_w = ch_h / ratio
+        ch_h_act = ch_w * ratio
+        cx = MARGIN_L + (CONTENT_W - ch_w) / 2.0; cy = content_y + 0.05
+        slide.shapes.add_picture(tmp, Inches(cx), Inches(cy), Inches(ch_w), Inches(ch_h_act))
+        nlab = 6
+        for i in range(nlab):
+            yv = round(xmin + (xmax - xmin) * i / (nlab - 1))
+            fx = 0.05 + (yv - xmin) / (xmax - xmin) * 0.90
+            lx = cx + fx * ch_w
+            tb = slide.shapes.add_textbox(Inches(lx - 0.3), Inches(cy + ch_h_act + 0.01),
+                                          Inches(0.6), Inches(0.22))
+            p = tb.text_frame.paragraphs[0]; p.alignment = PP_ALIGN.CENTER
+            set_text(p, str(yv), Pt(9), MEDIUM_GRAY)
+        lgx = cx + 0.1
+        for f in drawable:
+            sw = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(lgx), Inches(cy + 0.04),
+                                        Inches(0.22), Inches(0.12))
+            sw.fill.solid(); sw.fill.fore_color.rgb = PCOL.get(f["kind"]); sw.line.fill.background()
+            lt = slide.shapes.add_textbox(Inches(lgx + 0.28), Inches(cy - 0.04),
+                                          Inches(2.4), Inches(0.25))
+            set_text(lt.text_frame.paragraphs[0], f["name"], Pt(10), INK, bold=True)
+            lgx += 0.3 + min(2.4, 0.3 + len(f["name"]) * 0.12)
+        table_top = cy + ch_h_act + 0.28
+
+    headers = ["系列", "モデル", "R²", "直近(ラグ補正)", "翌年予測 (95%CI)"]
+    colw = [3.0, 1.5, 1.0, 2.6, CONTENT_W - 8.1]; rh = 0.42
+    hx = MARGIN_L
+    hdr = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(MARGIN_L), Inches(table_top),
+                                 Inches(CONTENT_W), Inches(rh))
+    hdr.fill.solid(); hdr.fill.fore_color.rgb = ACCENT; hdr.line.fill.background()
+    for j, htxt in enumerate(headers):
+        tb = slide.shapes.add_textbox(Inches(hx + 0.08), Inches(table_top + 0.06),
+                                      Inches(colw[j] - 0.12), Inches(rh - 0.1))
+        set_text(tb.text_frame.paragraphs[0], htxt, Pt(11), RGBColor(0xFF, 0xFF, 0xFF), bold=True)
+        hx += colw[j]
+    for ridx, f in enumerate(fits):
+        ry = table_top + rh * (ridx + 1)
+        bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(MARGIN_L), Inches(ry),
+                                    Inches(CONTENT_W), Inches(rh))
+        bg.fill.solid(); bg.fill.fore_color.rgb = PALE_GRAY if ridx % 2 == 0 else RGBColor(0xFF, 0xFF, 0xFF)
+        bg.line.fill.background()
+        if f["sparse"]:
+            yrs = sorted(f["observed"]); latest = f["observed"][max(yrs)] if yrs else 0
+            cells = [f["name"], "データ薄", "—", f"{latest:.0f}", "予測保留（点線提示）"]
+        else:
+            fy = f["forecast_years"][0]; lo, hi = f["pi"][fy]
+            cor = f["corrected"][max(f["corrected"])]
+            mdl = {"linear": "線形", "exp": "指数", "logistic": "ロジスティック"}.get(f["model"], f["model"])
+            cells = [f["name"], mdl, f"{f['r2']:.2f}" if f["r2"] is not None else "—",
+                     f"{cor:.0f}", f"{f['fit'][fy]:.0f}  [{lo:.0f}–{hi:.0f}]"]
+        cxp = MARGIN_L
+        for j, ctxt in enumerate(cells):
+            tb = slide.shapes.add_textbox(Inches(cxp + 0.08), Inches(ry + 0.07),
+                                          Inches(colw[j] - 0.12), Inches(rh - 0.12))
+            col = PCOL.get(f["kind"]) if j == 0 else INK
+            set_text(tb.text_frame.paragraphs[0], ctxt, Pt(10.5), col, bold=(j == 0))
+            cxp += colw[j]
+
+    if footnote:
+        fy0 = table_top + rh * (len(fits) + 1) + 0.12
+        fbar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(MARGIN_L), Inches(fy0),
+                                      Emu(36576), Inches(0.34))
+        fbar.fill.solid(); fbar.fill.fore_color.rgb = ACCENT; fbar.line.fill.background()
+        ft = slide.shapes.add_textbox(Inches(MARGIN_L + 0.18), Inches(fy0 - 0.02),
+                                      Inches(CONTENT_W - 0.18), Inches(0.5))
+        ftt = ft.text_frame; ftt.word_wrap = True; ftt.auto_size = MSO_AUTO_SIZE.NONE
+        set_text(ftt.paragraphs[0], footnote, Pt(11.5), INK, bold=True, line_spacing=1.2)
+
+    if source:
+        add_source_label(slide, source)
+    add_bottom_bar_and_footer(slide, page_num)
+    return slide
+```
+
+> **注**: `fit_forecast` は軽量な統計フォーキャスタ（依存追加なし）。厳密なベイズ/Prophet等ではないため、
+> **n小では区間を広く取り「仮説」と明示**する。点推定の断定でなく**区間と信頼度（R²・モデル名）を必ず併記**すること。
 
 ### 3.17 代表特許ミクロ分析スライド
 
