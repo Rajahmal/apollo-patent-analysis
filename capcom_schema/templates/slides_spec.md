@@ -1,4 +1,10 @@
-# PPTスライド仕様書 v6.4 — エディトリアル品質（モノトーン＋クリムゾン）+ ネイティブ図表 + 精読/総括/統計予測
+# PPTスライド仕様書 v6.5 — エディトリアル品質（モノトーン＋クリムゾン）+ ネイティブ図表 + 精読/総括/統計予測
+
+> **v6.5 追加（2026-06 / 全系列の一括ロジスティック・ライフサイクル）**
+> - **技術ライフサイクル一覧スライド** `add_lifecycle_slide` / `fit_lifecycle`（APOLLOの**全クラスタ＋分析トピックを
+>   まとめて累積ロジスティック回帰**に載せ、局面〔萌芽/成長/成熟/衰退〕・変曲年・直近CAGR・翌年予測・信頼度を
+>   1表で横並び比較。変曲年が過去＝成熟方向、『≈YYYY(後)』＝未来＝伸びしろ。件数の薄い系列は外挿不確実として
+>   伏せ仮説扱い。前変曲で過大外れする飽和Kは表に出さず**変曲年**を採用）
 
 > **v6.4 追加（2026-06 / 統計予測と「件数を結論にしない」原則）**
 > - **統計予測スライド** `add_forecast_slide`（件数時系列に **線形/指数/ロジスティック** を当て **AICでモデル選択**、
@@ -3034,6 +3040,134 @@ def add_forecast_slide(prs, title, sub_message, series, blank,
 
 > **注**: `fit_forecast` は軽量な統計フォーキャスタ（依存追加なし）。厳密なベイズ/Prophet等ではないため、
 > **n小では区間を広く取り「仮説」と明示**する。点推定の断定でなく**区間と信頼度（R²・モデル名）を必ず併記**すること。
+
+### 3.16d 技術ライフサイクル一覧スライド（全系列を累積ロジスティック回帰）
+
+> **トピック単発でなく、APOLLOの全クラスタ＋分析由来の特定トピックを一括**で評価する。各系列の
+> **累積件数にロジスティック回帰**を当て、変曲年・成熟度を推定し、公開ラグ補正後の直近CAGRと併せて
+> 局面（萌芽/成長/成熟/衰退）を判定。1枚の表で横並び比較する。変曲年が**過去＝成熟方向／『≈YYYY(後)』＝
+> 未来の変曲＝伸びしろ**。件数の薄い系列は外挿が不確実なため伏せ「仮説段階」として扱う（誠実さの担保）。
+> 飽和上限Kは前変曲では過大に外れるため、表では**変曲年**を用いる。純Python＋PILのみ・依存追加なし。
+
+```python
+def fit_lifecycle(years, annual, asof_year=None, lag=True, visibility=(0.55, 0.85)):
+    """技術ライフサイクル：**累積件数にロジスティック回帰**を当て、飽和上限K・変曲年・成熟度を推定し、
+    直近成長率（公開ラグ補正）と併せて局面（萌芽/成長/成熟/衰退）を判定する。
+    返り値: {'cum','cum_fit','K','t0_year','maturity','cagr','phase','next_year','confidence','total'}。
+    """
+    years = list(years); annual = list(annual)
+    asof_year = asof_year or max(years)
+    ann = dict(zip(years, annual))
+    if lag:
+        for k, fr in enumerate(visibility):
+            y = asof_year - k
+            if y in ann and fr: ann[y] = ann[y] / float(fr)
+    yrs = sorted(ann); cum = {}; s = 0.0
+    for y in yrs:
+        s += ann[y]; cum[y] = s
+    last = cum[yrs[-1]]
+    lg = _fit_logistic(yrs, [cum[y] for y in yrs])   # 累積にロジスティック
+    if lg:
+        sse, K, a, b = lg
+        t0 = (-a / b) if b else yrs[len(yrs) // 2]
+        cum_fit = {y: K / (1 + math.exp(-(a + b * y))) for y in yrs + [asof_year + 1, asof_year + 2]}
+        maturity = last / K if K else 1.0
+    else:
+        K = last; t0 = yrs[len(yrs) // 2]; cum_fit = dict(cum); maturity = 1.0
+    a3 = sum(ann[y] for y in yrs[-6:-3]) or 0.5
+    b3 = sum(ann[y] for y in yrs[-3:]) or 0.5
+    cagr = (b3 / a3) ** (1 / 3.0) - 1 if a3 > 0 else 0.0
+    if cagr <= -0.05: phase = "衰退"
+    elif cagr >= 0.20 and maturity < 0.6: phase = "萌芽/成長"
+    elif cagr >= 0.05: phase = "成長"
+    else: phase = "成熟"
+    ny = max(0.0, cum_fit.get(asof_year + 1, last) - cum_fit.get(asof_year, last))
+    conf = "高" if last >= 60 else ("中" if last >= 20 else "低")
+    return {"cum": cum, "cum_fit": cum_fit, "K": K, "t0_year": t0, "maturity": maturity,
+            "cagr": cagr, "phase": phase, "next_year": ny, "confidence": conf, "total": last}
+
+
+def add_lifecycle_slide(prs, title, sub_message, series, blank,
+                        label="技術ライフサイクル", asof_year=None, source=None,
+                        page_num=None, footnote=None):
+    """全クラスタ＋分析トピックを **累積ロジスティック回帰** で一括評価する一覧スライド。
+    各系列の局面（萌芽/成長/成熟/衰退）・飽和上限K・直近成長率・翌年予測・信頼度を1表にまとめる。
+
+    series: [{"name":"[2] ガス分離・回収","data":{2006:4,...,2024:7},"group":"クラスタ"}]
+      group は任意（"クラスタ"/"トピック" 等で区切り見出し代わりの色分けに）。
+    """
+    PHCOL = {"萌芽/成長": ACCENT, "成長": RGBColor(0x9A, 0x1A, 0x1A),
+             "成熟": INK, "衰退": MEDIUM_GRAY}
+    slide = prs.slides.add_slide(blank)
+    sub_y = add_title_shape(slide, title, label=label)
+    content_y = add_sub_message(slide, sub_message, y=sub_y) if sub_message else sub_y + 0.1
+
+    rows = []
+    for s in series:
+        d = {int(k): float(v) for k, v in s["data"].items()}
+        yrs = sorted(d)
+        fc = fit_lifecycle(yrs, [d[y] for y in yrs], asof_year=asof_year)
+        rows.append((s["name"], s.get("group", ""), fc))
+
+    headers = ["系列", "局面", "累計", "変曲年(推定)", "直近CAGR", "翌年予測", "信頼度"]
+    colw = [3.1, 1.5, 0.95, 1.6, 1.4, 1.35, CONTENT_W - 9.9]
+    n = len(rows)
+    avail = (6.15 if footnote else 6.5) - content_y - 0.10
+    rh = min(0.42, avail / (n + 1))
+    top = content_y + 0.10
+    # ヘッダ
+    hx = MARGIN_L
+    hdr = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(MARGIN_L), Inches(top),
+                                 Inches(CONTENT_W), Inches(rh))
+    hdr.fill.solid(); hdr.fill.fore_color.rgb = ACCENT; hdr.line.fill.background()
+    for j, h in enumerate(headers):
+        tb = slide.shapes.add_textbox(Inches(hx + 0.07), Inches(top + (rh - 0.24) / 2),
+                                      Inches(colw[j] - 0.1), Inches(0.26))
+        set_text(tb.text_frame.paragraphs[0], h, Pt(10.5), RGBColor(0xFF, 0xFF, 0xFF), bold=True)
+        hx += colw[j]
+    # 行
+    for ridx, (name, grp, fc) in enumerate(rows):
+        ry = top + rh * (ridx + 1)
+        bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(MARGIN_L), Inches(ry),
+                                    Inches(CONTENT_W), Inches(rh))
+        bg.fill.solid(); bg.fill.fore_color.rgb = PALE_GRAY if ridx % 2 == 0 else RGBColor(0xFF, 0xFF, 0xFF)
+        bg.line.fill.background()
+        # 変曲年：薄い系列は伏せ、未来の変曲は「≈YYYY(後)」で前変曲/後変曲を区別
+        if fc["confidence"] == "低":
+            tdisp = "—"
+        else:
+            t0 = fc["t0_year"]
+            tdisp = f"{t0:.0f}" if t0 <= (asof_year or 2024) else f"≈{t0:.0f}(後)"
+        cells = [name, fc["phase"], f"{fc['total']:.0f}", tdisp,
+                 f"{fc['cagr']*100:+.0f}%", f"{fc['next_year']:.0f}", fc["confidence"]]
+        cxp = MARGIN_L
+        for j, ctxt in enumerate(cells):
+            tb = slide.shapes.add_textbox(Inches(cxp + 0.07), Inches(ry + (rh - 0.22) / 2),
+                                          Inches(colw[j] - 0.1), Inches(0.24))
+            if j == 0:
+                col = INK; bold = True
+            elif j == 1:
+                col = PHCOL.get(ctxt, INK); bold = True
+            else:
+                col = INK; bold = False
+            set_text(tb.text_frame.paragraphs[0], ctxt, Pt(10), col, bold=bold)
+            cxp += colw[j]
+
+    if footnote:
+        fy0 = top + rh * (n + 1) + 0.12
+        fbar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(MARGIN_L), Inches(fy0),
+                                      Emu(36576), Inches(0.34))
+        fbar.fill.solid(); fbar.fill.fore_color.rgb = ACCENT; fbar.line.fill.background()
+        ft = slide.shapes.add_textbox(Inches(MARGIN_L + 0.18), Inches(fy0 - 0.02),
+                                      Inches(CONTENT_W - 0.18), Inches(0.5))
+        ftt = ft.text_frame; ftt.word_wrap = True; ftt.auto_size = MSO_AUTO_SIZE.NONE
+        set_text(ftt.paragraphs[0], footnote, Pt(11), INK, bold=True, line_spacing=1.2)
+
+    if source:
+        add_source_label(slide, source)
+    add_bottom_bar_and_footer(slide, page_num)
+    return slide
+```
 
 ### 3.17 代表特許ミクロ分析スライド
 
