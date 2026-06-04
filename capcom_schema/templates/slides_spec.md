@@ -1,4 +1,11 @@
-# PPTスライド仕様書 v6.6 — エディトリアル品質（モノトーン＋クリムゾン）+ ネイティブ図表 + 精読/総括/統計予測
+# PPTスライド仕様書 v6.7 — エディトリアル品質（モノトーン＋クリムゾン）+ ネイティブ図表 + 精読/総括/統計予測
+
+> **v6.7 改良（2026-06 / 下端出所・ブランド名の非表示）**
+> - **出所ラベルをスライド下端ギリギリへ**（`add_source_label` の既定 y=6.55→6.98・幅を右下ページ番号と
+>   干渉しない 11.3in に）。本文と出所の距離が開き、紙面が締まる。
+> - **プラットフォーム・ワードマークを既定で非表示**（`WORDMARK=""`）。表紙の巨大ゴースト＋白ワードマークは
+>   `WORDMARK` が空なら描かない。**ブランド名（APOLLO 等）を全頁に繰り返さない**——出所・脚注も
+>   モジュール名／データ名のみとし、プラットフォーム名を冠さない（読み手の集中を削がないため）。
 
 > **v6.6 追加（2026-06 / S字曲線版ライフサイクル）**
 > - **技術ライフサイクル S字曲線スライド** `add_lifecycle_curve_slide`（指定系列の累積件数に**ロジスティック回帰**を
@@ -747,8 +754,8 @@ def fit_image(slide, image_path, max_x, max_y, max_w, max_h):
     return pic
 
 
-def add_source_label(slide, source_text, x=0.5, y=6.55, w=12.3):
-    """（出所）ラベル"""
+def add_source_label(slide, source_text, x=0.5, y=6.98, w=11.3):
+    """（出所）ラベル（スライド下端ギリギリに配置・右下ページ番号と干渉しない幅）"""
     txBox = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(0.35))
     tf = txBox.text_frame
     tf.word_wrap = True
@@ -886,14 +893,16 @@ def add_highlight_circle(slide, x, y, w=0.5, h=0.5, color=None):
 黒背景（DARK_SECTION）に白テキスト。クリムゾン単一アクセント。
 
 ```python
+WORDMARK = ""   # 表紙のプラットフォーム・ワードマーク。空文字なら一切描かない（ブランド名を頁に出さない既定）
+
 def add_title_slide(prs, title, subtitle, date, blank,
                     kicker="TECHNOLOGY INTELLIGENCE REPORT"):
     """表紙 — 黒背景の大胆なエディトリアル演出（デッキの第一印象を決める頁）
 
     構成（柱0「インパクト演出」）:
       - 左端フル丈クリムゾン・ストリップ（強いアンカー。章扉と統一）
-      - 背面に巨大ゴースト・ワードマーク "APOLLO"（低コントラストで奥行き）
-      - キッカー（赤・字間広め・全大文字）+ APOLLO ワードマーク（白・字間広め）
+      - （任意）背面の巨大ゴースト・ワードマーク＋白ワードマーク。**WORDMARK が空なら描かない**
+        （プラットフォーム名を全頁に出すと注意が散るため既定は非表示）
       - タイトル直上の太いクリムゾン罫 + 大判明朝タイトル（最大48pt）
       - 下部クリムゾン帯に日付を白文字反転で乗せる
     kicker はレポート種別ラベル（例 "PATENT LANDSCAPE REPORT"）。"""
@@ -902,18 +911,19 @@ def add_title_slide(prs, title, subtitle, date, blank,
     bg.solid()
     bg.fore_color.rgb = DARK_SECTION
 
-    # 巨大ゴースト・ワードマーク（背面・低コントラストで奥行きを作る）
-    ghost = slide.shapes.add_textbox(Inches(0.7), Inches(4.55), Inches(13.0), Inches(2.6))
-    gtf = ghost.text_frame
-    gtf.word_wrap = False
-    gtf.auto_size = MSO_AUTO_SIZE.NONE
-    grun = gtf.paragraphs[0].add_run()
-    grun.text = "APOLLO"
-    grun.font.size = Pt(150)
-    grun.font.bold = True
-    grun.font.color.rgb = RGBColor(0x1B, 0x1B, 0x1F)  # 黒よりわずかに明るい墨
-    _apply_font(grun, heading=True)
-    _track(grun, 400)
+    # 巨大ゴースト・ワードマーク（背面・低コントラストで奥行き）。WORDMARK が空なら描かない
+    if WORDMARK:
+        ghost = slide.shapes.add_textbox(Inches(0.7), Inches(4.55), Inches(13.0), Inches(2.6))
+        gtf = ghost.text_frame
+        gtf.word_wrap = False
+        gtf.auto_size = MSO_AUTO_SIZE.NONE
+        grun = gtf.paragraphs[0].add_run()
+        grun.text = WORDMARK
+        grun.font.size = Pt(150)
+        grun.font.bold = True
+        grun.font.color.rgb = RGBColor(0x1B, 0x1B, 0x1F)  # 黒よりわずかに明るい墨
+        _apply_font(grun, heading=True)
+        _track(grun, 400)
 
     # 左端フル丈クリムゾン・ストリップ
     strip = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(0.30), Inches(7.5))
@@ -930,14 +940,15 @@ def add_title_slide(prs, title, subtitle, date, blank,
     krun.font.size = Pt(12); krun.font.bold = True; krun.font.color.rgb = RED_ON_DARK
     _apply_font(krun, heading=True); _track(krun, 280)
 
-    # APOLLO ワードマーク（白・字間広め）
-    wm = slide.shapes.add_textbox(Inches(1.15), Inches(1.42), Inches(8), Inches(0.5))
-    wm.text_frame.word_wrap = True
-    wm.text_frame.auto_size = MSO_AUTO_SIZE.NONE
-    wrun = wm.text_frame.paragraphs[0].add_run()
-    wrun.text = "APOLLO"
-    wrun.font.size = Pt(20); wrun.font.bold = True; wrun.font.color.rgb = WHITE
-    _apply_font(wrun, heading=True); _track(wrun, 600)
+    # ワードマーク（白・字間広め）。WORDMARK が空なら描かない
+    if WORDMARK:
+        wm = slide.shapes.add_textbox(Inches(1.15), Inches(1.42), Inches(8), Inches(0.5))
+        wm.text_frame.word_wrap = True
+        wm.text_frame.auto_size = MSO_AUTO_SIZE.NONE
+        wrun = wm.text_frame.paragraphs[0].add_run()
+        wrun.text = WORDMARK
+        wrun.font.size = Pt(20); wrun.font.bold = True; wrun.font.color.rgb = WHITE
+        _apply_font(wrun, heading=True); _track(wrun, 600)
 
     # タイトル長で大判サイズを段階選択
     tlen = len(title)
