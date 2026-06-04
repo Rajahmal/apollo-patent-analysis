@@ -1359,9 +1359,9 @@ def add_cards_slide(prs, title, sub_message, cards, blank,
         x = 0.5 + i * (card_w + gap)
         color = card.get("color", colors[i % len(colors)])
 
-        # ヘッダー（色付き背景 + 白テキスト）
+        # ヘッダー（色付き背景 + 白テキスト・長方形）
         hdr = slide.shapes.add_shape(
-            MSO_SHAPE.ROUNDED_RECTANGLE, Inches(x), Inches(content_y),
+            MSO_SHAPE.RECTANGLE, Inches(x), Inches(content_y),
             Inches(card_w), Inches(header_h)
         )
         hdr.fill.solid()
@@ -1820,9 +1820,9 @@ def add_triangle_slide(prs, title, sub_message, elements, blank,
     for i, (elem, (px, py)) in enumerate(zip(elements[:3], positions)):
         color = elem.get("color", colors[i % len(colors)])
 
-        # カードヘッダー
+        # カードヘッダー（長方形）
         hdr = slide.shapes.add_shape(
-            MSO_SHAPE.ROUNDED_RECTANGLE, Inches(px), Inches(py),
+            MSO_SHAPE.RECTANGLE, Inches(px), Inches(py),
             Inches(card_w), Inches(0.45)
         )
         hdr.fill.solid()
