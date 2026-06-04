@@ -1,4 +1,9 @@
-# PPTスライド仕様書 v6.5 — エディトリアル品質（モノトーン＋クリムゾン）+ ネイティブ図表 + 精読/総括/統計予測
+# PPTスライド仕様書 v6.6 — エディトリアル品質（モノトーン＋クリムゾン）+ ネイティブ図表 + 精読/総括/統計予測
+
+> **v6.6 追加（2026-06 / S字曲線版ライフサイクル）**
+> - **技術ライフサイクル S字曲線スライド** `add_lifecycle_curve_slide`（指定系列の累積件数に**ロジスティック回帰**を
+>   当て、観測累積点＋S字フィット曲線〔実績=実線／将来=点線〕＋推定変曲点◇を重ね描き。Y軸は実観測累積基準で
+>   外挿Kに歪まない。赤は主役1系列のみ・他はグレー階調。一覧表 `add_lifecycle_slide` と対で運用）
 
 > **v6.5 追加（2026-06 / 全系列の一括ロジスティック・ライフサイクル）**
 > - **技術ライフサイクル一覧スライド** `add_lifecycle_slide` / `fit_lifecycle`（APOLLOの**全クラスタ＋分析トピックを
@@ -3041,13 +3046,15 @@ def add_forecast_slide(prs, title, sub_message, series, blank,
 > **注**: `fit_forecast` は軽量な統計フォーキャスタ（依存追加なし）。厳密なベイズ/Prophet等ではないため、
 > **n小では区間を広く取り「仮説」と明示**する。点推定の断定でなく**区間と信頼度（R²・モデル名）を必ず併記**すること。
 
-### 3.16d 技術ライフサイクル一覧スライド（全系列を累積ロジスティック回帰）
+### 3.16d 技術ライフサイクル（全系列の一括ロジスティック）— 一覧表 ＋ S字曲線
 
 > **トピック単発でなく、APOLLOの全クラスタ＋分析由来の特定トピックを一括**で評価する。各系列の
 > **累積件数にロジスティック回帰**を当て、変曲年・成熟度を推定し、公開ラグ補正後の直近CAGRと併せて
 > 局面（萌芽/成長/成熟/衰退）を判定。1枚の表で横並び比較する。変曲年が**過去＝成熟方向／『≈YYYY(後)』＝
 > 未来の変曲＝伸びしろ**。件数の薄い系列は外挿が不確実なため伏せ「仮説段階」として扱う（誠実さの担保）。
 > 飽和上限Kは前変曲では過大に外れるため、表では**変曲年**を用いる。純Python＋PILのみ・依存追加なし。
+> **チャート版** `add_lifecycle_curve_slide`：指定系列の累積にロジスティック回帰を当て、観測点＋S字フィット曲線
+> （実績=実線／将来=点線）＋変曲点◇を重ねて描く（赤は主役1系列のみ・他はグレー階調）。一覧表と対で使う。
 
 ```python
 def fit_lifecycle(years, annual, asof_year=None, lag=True, visibility=(0.55, 0.85)):
@@ -3073,7 +3080,7 @@ def fit_lifecycle(years, annual, asof_year=None, lag=True, visibility=(0.55, 0.8
         cum_fit = {y: K / (1 + math.exp(-(a + b * y))) for y in yrs + [asof_year + 1, asof_year + 2]}
         maturity = last / K if K else 1.0
     else:
-        K = last; t0 = yrs[len(yrs) // 2]; cum_fit = dict(cum); maturity = 1.0
+        K = last; a = 0.0; b = 0.0; t0 = yrs[len(yrs) // 2]; cum_fit = dict(cum); maturity = 1.0
     a3 = sum(ann[y] for y in yrs[-6:-3]) or 0.5
     b3 = sum(ann[y] for y in yrs[-3:]) or 0.5
     cagr = (b3 / a3) ** (1 / 3.0) - 1 if a3 > 0 else 0.0
@@ -3083,8 +3090,9 @@ def fit_lifecycle(years, annual, asof_year=None, lag=True, visibility=(0.55, 0.8
     else: phase = "成熟"
     ny = max(0.0, cum_fit.get(asof_year + 1, last) - cum_fit.get(asof_year, last))
     conf = "高" if last >= 60 else ("中" if last >= 20 else "低")
-    return {"cum": cum, "cum_fit": cum_fit, "K": K, "t0_year": t0, "maturity": maturity,
-            "cagr": cagr, "phase": phase, "next_year": ny, "confidence": conf, "total": last}
+    return {"cum": cum, "cum_fit": cum_fit, "K": K, "a": a, "b": b, "t0_year": t0,
+            "maturity": maturity, "cagr": cagr, "phase": phase, "next_year": ny,
+            "confidence": conf, "total": last, "years": yrs}
 
 
 def add_lifecycle_slide(prs, title, sub_message, series, blank,
@@ -3155,6 +3163,126 @@ def add_lifecycle_slide(prs, title, sub_message, series, blank,
 
     if footnote:
         fy0 = top + rh * (n + 1) + 0.12
+        fbar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(MARGIN_L), Inches(fy0),
+                                      Emu(36576), Inches(0.34))
+        fbar.fill.solid(); fbar.fill.fore_color.rgb = ACCENT; fbar.line.fill.background()
+        ft = slide.shapes.add_textbox(Inches(MARGIN_L + 0.18), Inches(fy0 - 0.02),
+                                      Inches(CONTENT_W - 0.18), Inches(0.5))
+        ftt = ft.text_frame; ftt.word_wrap = True; ftt.auto_size = MSO_AUTO_SIZE.NONE
+        set_text(ftt.paragraphs[0], footnote, Pt(11), INK, bold=True, line_spacing=1.2)
+
+    if source:
+        add_source_label(slide, source)
+    add_bottom_bar_and_footer(slide, page_num)
+    return slide
+
+
+def _render_lifecycle_curves(curves, out_path, asof_year, w=2200, h=980):
+    """累積ロジスティックS字曲線をPILで描画。各系列の観測累積点＋ロジスティック回帰曲線
+    （実績区間=実線／将来=点線）＋変曲点マーカーを重ねる。日本語注釈はpptx側。
+    curves: [{'name','color','cum':{y:v},'a','b','K','t0_year','last_year'}]。
+    返り値: (xmin, xmax, ymax)。"""
+    SS = 2; pad = 0.06
+    cw, chh = w * SS, h * SS
+    im = Image.new("RGBA", (cw, chh), (255, 255, 255, 0)); dr = ImageDraw.Draw(im)
+    allyears = []
+    for c in curves: allyears += list(c["cum"].keys())
+    xmin = min(allyears); xmax = max(asof_year + 2, max(allyears))
+    # Y軸は実観測累積の最大を基準（外挿Kには引っ張られない）。将来外挿が突き抜けても上方でクリップ。
+    ymax = (max(max(c["cum"].values() or [0]) for c in curves) * 1.25) or 1.0
+    def tx(x): return (pad + (x - xmin) / (xmax - xmin) * (1 - 2 * pad)) * cw
+    def ty(v): return (1 - pad - min(v, ymax) / ymax * (1 - 2 * pad)) * chh
+    for g in range(5):
+        gy = ty(ymax * g / 4.0)
+        dr.line([(tx(xmin), gy), (tx(xmax), gy)], fill=(0xE6, 0xE8, 0xEC, 255), width=2)
+    for c in curves:
+        col = c["color"]; a = c["a"]; b = c["b"]; K = c["K"]; ly = c["last_year"]
+        # 連続S字曲線（細刻み）
+        prev = None; step = (xmax - xmin) / 240.0; x = xmin
+        while x <= xmax + 1e-6:
+            v = K / (1 + math.exp(-(a + b * x))) if b else 0
+            p = (tx(x), ty(v))
+            if prev is not None:
+                if x <= ly:
+                    dr.line([prev, p], fill=col + (255,), width=5)            # 実績区間=実線
+                else:
+                    seg = int((x - xmin) / step)
+                    if seg % 2 == 0:
+                        dr.line([prev, p], fill=col + (255,), width=4)        # 将来=点線
+            prev = p; x += step
+        # 観測累積点
+        for y in sorted(c["cum"].keys()):
+            x0, y0 = tx(y), ty(c["cum"][y]); r = 6
+            dr.ellipse([x0 - r, y0 - r, x0 + r, y0 + r], fill=col + (235,))
+        # 変曲点マーカー（◇）
+        t0 = c["t0_year"]
+        if xmin <= t0 <= xmax:
+            vy = ty(K / 2.0); xx = tx(t0); d = 11
+            dr.polygon([(xx, vy - d), (xx + d, vy), (xx, vy + d), (xx - d, vy)],
+                       outline=col + (255,), fill=(255, 255, 255, 230))
+            dr.polygon([(xx, vy - d), (xx + d, vy), (xx, vy + d), (xx - d, vy)], outline=col + (255,))
+    im = im.resize((w, h), Image.LANCZOS); im.save(out_path)
+    return xmin, xmax, ymax
+
+
+def add_lifecycle_curve_slide(prs, title, sub_message, series, blank,
+                              label="技術ライフサイクル", asof_year=None, source=None,
+                              page_num=None, footnote=None):
+    """技術ライフサイクル（S字曲線）スライド。指定系列の **累積件数にロジスティック回帰** を当て、
+    観測点＋S字フィット曲線（実績=実線／将来=点線）＋変曲点（◇）を重ねて描く。一覧表（add_lifecycle_slide）
+    と対で使い、『成熟＝寝たS字／萌芽＝立ち上がり途中』を視覚化する。3-5系列推奨。"""
+    # 設計原則（赤は主役1点）: 先頭系列だけクリムゾン、残りはグレー階調で描く
+    PAL = [ACCENT, RGBColor(0x3A, 0x3D, 0x42), RGBColor(0x7A, 0x7E, 0x84),
+           RGBColor(0xB0, 0xB4, 0xBA), RGBColor(0x55, 0x58, 0x5E)]
+    PAL_T = [(0xC5, 0x12, 0x12), (0x3A, 0x3D, 0x42), (0x7A, 0x7E, 0x84),
+             (0xB0, 0xB4, 0xBA), (0x55, 0x58, 0x5E)]
+    asof_year = asof_year or 2024
+    slide = prs.slides.add_slide(blank)
+    sub_y = add_title_shape(slide, title, label=label)
+    content_y = add_sub_message(slide, sub_message, y=sub_y) if sub_message else sub_y + 0.1
+
+    curves = []
+    for i, s in enumerate(series[:5]):
+        d = {int(k): float(v) for k, v in s["data"].items()}
+        fc = fit_lifecycle(sorted(d), [d[y] for y in sorted(d)], asof_year=asof_year)
+        curves.append({"name": s["name"], "color": PAL_T[i % len(PAL_T)], "a": fc["a"],
+                       "b": fc["b"], "K": fc["K"], "t0_year": fc["t0_year"],
+                       "last_year": max(fc["years"]), "cum": fc["cum"], "phase": fc["phase"]})
+
+    tmp = os.path.join(tempfile.gettempdir(), "apollo_lifecycle_curve.png")
+    CW_PX, CH_PX = 2200, 980
+    xmin, xmax, ymax = _render_lifecycle_curves(curves, tmp, asof_year, w=CW_PX, h=CH_PX)
+    ratio = float(CH_PX) / CW_PX
+    ch_h = min(2.6, (6.4 - content_y - 0.9))
+    ch_w = CONTENT_W
+    if ch_w * ratio > ch_h: ch_w = ch_h / ratio
+    ch_h_act = ch_w * ratio
+    cx = MARGIN_L + (CONTENT_W - ch_w) / 2.0; cy = content_y + 0.05
+    slide.shapes.add_picture(tmp, Inches(cx), Inches(cy), Inches(ch_w), Inches(ch_h_act))
+    # X軸年ラベル
+    for i in range(6):
+        yv = round(xmin + (xmax - xmin) * i / 5)
+        fx = 0.06 + (yv - xmin) / (xmax - xmin) * 0.88
+        tb = slide.shapes.add_textbox(Inches(cx + fx * ch_w - 0.3), Inches(cy + ch_h_act + 0.02),
+                                      Inches(0.6), Inches(0.22))
+        p = tb.text_frame.paragraphs[0]; p.alignment = PP_ALIGN.CENTER
+        set_text(p, str(yv), Pt(9), MEDIUM_GRAY)
+    # 凡例（系列名＋局面）
+    lgx = cx + 0.1; lgy = cy + ch_h_act + 0.28
+    for i, c in enumerate(curves):
+        sw = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(lgx), Inches(lgy + 0.03),
+                                    Inches(0.30), Inches(0.10))
+        sw.fill.solid(); sw.fill.fore_color.rgb = PAL[i % len(PAL)]; sw.line.fill.background()
+        nm = f"{c['name']}（{c['phase']}）"
+        lt = slide.shapes.add_textbox(Inches(lgx + 0.36), Inches(lgy - 0.04),
+                                      Inches(3.6), Inches(0.26))
+        set_text(lt.text_frame.paragraphs[0], nm, Pt(10), INK, bold=True)
+        lgx += 0.4 + min(3.5, 0.5 + len(nm) * 0.11)
+        if lgx > MARGIN_L + CONTENT_W - 2.5:
+            lgx = cx + 0.1; lgy += 0.30
+
+    if footnote:
+        fy0 = lgy + 0.40
         fbar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(MARGIN_L), Inches(fy0),
                                       Emu(36576), Inches(0.34))
         fbar.fill.solid(); fbar.fill.fore_color.rgb = ACCENT; fbar.line.fill.background()
