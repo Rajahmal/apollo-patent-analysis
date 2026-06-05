@@ -1,4 +1,8 @@
-# PPTスライド仕様書 v6.8 — エディトリアル品質 + ネイティブ図表 + 統計予測 + Crimson Vector 章扉/ピラミッド
+# PPTスライド仕様書 v6.9 — エディトリアル品質 + 統計予測 + Crimson Vector 章扉/ピラミッド/検索式/クロージング
+
+> **v6.9 追加（2026-06 / 検索式スライド・クロージング刷新）**
+> - **検索式スライド** `add_query_logic_slide`（母集団の論理式を表＋設計意図【要約】＋最終論理式で1枚に。目次の直後に置く）。
+> - **クロージング** `add_closing_slide` を Crimson Vector で刷新（章扉と同系統だが別構図＝上向きグラデ三角＝ピラミッド頂点モチーフ＋下部地平線グラデ）。旧クロージング（中央メッセージのみ）は削除。
 
 > **v6.8 刷新（2026-06 / Crimson Vector V11 の章扉・結論ピラミッドを採用）**
 > - **章扉 `add_section_slide` を全面刷新**：黒の舞台（スキャンライン＋右の赤い建築面）＋巨大クリムゾン番号＋
@@ -2215,29 +2219,7 @@ def add_timeline_slide(prs, title, sub_message, events, blank,
 
 黒背景（DARK_SECTION）。"Thank You" + レポートタイトル + APOLLOブランディング。
 
-```python
-def add_closing_slide(prs, report_title, blank):
-    """クロージング — 黒背景。締めのメッセージ（report_title）を主役に置く（"Thank You" は置かない）"""
-    slide = prs.slides.add_slide(blank)
-    bg = slide.background.fill
-    bg.solid()
-    bg.fore_color.rgb = DARK_SECTION
 
-    # 締めのメッセージ（明朝・大・白・中央）
-    txBox2 = slide.shapes.add_textbox(Inches(1.2), Inches(3.0), Inches(10.9), Inches(1.6))
-    tf2 = txBox2.text_frame; tf2.word_wrap = True
-    set_text(tf2.paragraphs[0], report_title, Pt(32), WHITE, bold=True, line_spacing=1.2, heading=True)
-    tf2.paragraphs[0].alignment = PP_ALIGN.CENTER
-
-    # ボトムライン
-    bot = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(0), Inches(7.1), Inches(13.33), Emu(27432)
-    )
-    bot.fill.solid()
-    bot.fill.fore_color.rgb = ACCENT
-    bot.line.fill.background()
-    return slide
-```
 
 ### 補助スライドタイプ
 
@@ -2680,6 +2662,91 @@ def add_insight_slide(prs, title, sub_message, layers, blank,
 > 『件数の主役』と『意味的に外れた萌芽領域』を対比できる。点と破線リングはPILで描画し、
 > 日本語注釈はpptxのテキストで重ねる（matplotlibや日本語フォントに依存しない）。
 > **必要パッケージにmatplotlibは不要**（Pillowのみ）。発見の道筋スライドと対で総括の直前に置く。
+
+### 3.16e 検索式スライド & クロージング（Crimson Vector）
+
+> 母集団の検索式（論理式）を表＋設計意図要約で示す `add_query_logic_slide`、デッキ末尾を締める
+> `add_closing_slide`（章扉と同系統だが別構図：上向きグラデ三角＝ピラミッド頂点モチーフ）。
+
+```python
+def add_query_logic_slide(prs, title, sub_message, rows, intent, blank,
+                          final_logic=None, source=None, page_num=None):
+    """検索式（母集団論理式）スライド：左に検索条件の表、右に設計意図【要約】。
+    rows: [(no, target, cond), ...] / intent: 要約の箇条書き（list[str]）。"""
+    slide = prs.slides.add_slide(blank)
+    sub_y = add_title_shape(slide, title, label="母集団設計 / 検索式")
+    content_y = add_sub_message(slide, sub_message, y=sub_y) if sub_message else sub_y + 0.1
+    tx0 = MARGIN_L; tw = 7.35; colw = [0.45, 1.45, tw - 0.45 - 1.45]
+    n = len(rows); top = content_y + 0.05
+    bot = 6.45 if final_logic else 6.7
+    rh = min(0.36, (bot - top) / (n + 1))
+    hd = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(tx0), Inches(top), Inches(tw), Inches(rh))
+    hd.fill.solid(); hd.fill.fore_color.rgb = ACCENT; hd.line.fill.background()
+    for j, h in enumerate(["#", "対象", "検索条件"]):
+        cx = tx0 + sum(colw[:j])
+        tb = slide.shapes.add_textbox(Inches(cx + 0.06), Inches(top + (rh - 0.22) / 2), Inches(colw[j] - 0.1), Inches(0.24))
+        set_text(tb.text_frame.paragraphs[0], h, Pt(10), RGBColor(0xFF, 0xFF, 0xFF), bold=True)
+    for i, row in enumerate(rows):
+        no, tgt, cond = row
+        ry = top + rh * (i + 1)
+        bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(tx0), Inches(ry), Inches(tw), Inches(rh))
+        bg.fill.solid(); bg.fill.fore_color.rgb = PALE_GRAY if i % 2 == 0 else RGBColor(0xFF, 0xFF, 0xFF); bg.line.fill.background()
+        for j, ct in enumerate([str(no), tgt, cond]):
+            cx = tx0 + sum(colw[:j])
+            tb = slide.shapes.add_textbox(Inches(cx + 0.06), Inches(ry + 0.02), Inches(colw[j] - 0.1), Inches(rh - 0.04))
+            tf = tb.text_frame; tf.word_wrap = True; tf.auto_size = MSO_AUTO_SIZE.NONE
+            col = ACCENT if j == 0 else INK
+            set_text(tf.paragraphs[0], ct, Pt(8.0 if j == 2 else 9), col, bold=(j == 0), line_spacing=1.0)
+    # 右：設計意図【要約】パネル
+    px = tx0 + tw + 0.25; pw = 13.33 - px - 0.7; ph = bot - top
+    panel = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(px), Inches(top), Inches(pw), Inches(ph))
+    panel.fill.solid(); panel.fill.fore_color.rgb = PALE_GRAY; panel.line.fill.background()
+    bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(px), Inches(top), Emu(36576), Inches(ph))
+    bar.fill.solid(); bar.fill.fore_color.rgb = ACCENT; bar.line.fill.background()
+    t1 = slide.shapes.add_textbox(Inches(px + 0.2), Inches(top + 0.14), Inches(pw - 0.35), Inches(0.3))
+    set_text(t1.text_frame.paragraphs[0], "設計意図【要約】", Pt(12), ACCENT, bold=True)
+    body = slide.shapes.add_textbox(Inches(px + 0.2), Inches(top + 0.56), Inches(pw - 0.36), Inches(ph - 0.7))
+    tf = body.text_frame; tf.word_wrap = True; tf.auto_size = MSO_AUTO_SIZE.NONE
+    for k, b in enumerate(intent):
+        p = tf.paragraphs[0] if k == 0 else tf.add_paragraph()
+        add_rich_runs(p, "■ " + b, base_size=Pt(9.5), base_color=DARK_GRAY, bold_color=INK, line_spacing=1.3)
+        p.space_after = Pt(5)
+    if final_logic:
+        fb = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(MARGIN_L), Inches(bot + 0.12), Emu(36576), Inches(0.34))
+        fb.fill.solid(); fb.fill.fore_color.rgb = ACCENT; fb.line.fill.background()
+        ft = slide.shapes.add_textbox(Inches(MARGIN_L + 0.18), Inches(bot + 0.10), Inches(CONTENT_W - 0.18), Inches(0.4))
+        set_text(ft.text_frame.paragraphs[0], "最終論理式： " + final_logic, Pt(10.5), INK, bold=True)
+    if source:
+        add_source_label(slide, source)
+    add_bottom_bar_and_footer(slide, page_num)
+    return slide
+
+
+def add_closing_slide(prs, title, message, blank, en=None, micro=None, page_num=None):
+    """クロージング（Crimson Vector・章扉と同系統だが別構図）：黒地＋下部クリムゾン地平線グラデ帯＋
+    右に上向きの大きなグラデ三角（ピラミッドの頂点モチーフで締める）。左に大見出し＋要諦メッセージ。"""
+    s = prs.slides.add_slide(blank)
+    _cv_base_stage(s, red=False)
+    # 右：上向きの大きなグラデ三角（apexモチーフ・ピラミッドと呼応）
+    _cv_grad_poly(s, [(10.55,0.62),(13.95,7.02),(7.15,7.02)], _CV["crimson3"], _CV["crimson"], 90, _CV["white"], 20, 0.8)
+    _cv_grad_poly(s, [(10.55,1.66),(12.85,7.02),(8.25,7.02)], _CV["crimson2"], _CV["redDark"], 90, _CV["crimson"], 42, 0.4)
+    _cv_ln(s, 10.55,0.62, 3.40,6.40, _CV["white"], 30, 1.1)
+    _cv_ln(s, 10.55,0.62, -3.40,6.40, _CV["white"], 30, 1.1)
+    _cv_ln(s, 10.62,0.66, 0,6.30, _CV["crimson"], 70, 0.9)
+    # 下部：地平線グラデ帯
+    _cv_grad_shape(s, MSO_SHAPE.RECTANGLE, 0,6.42,13.333,1.10, _CV["redDark"], _CV["black"], 90, op=82)
+    _cv_ln(s, 0,6.46, 13.333,0, _CV["crimson"], 22, 1.5)
+    # 左：クロージング
+    _cv_txt(s, (en or "CLOSING"), 0.60,1.42,7.0,0.4, 14, _CV["crimson"], _CV_GO, False, PP_ALIGN.LEFT, 3.0)
+    _cv_ln(s, 0.62,2.02, 2.20,0, _CV["crimson"], 100, 0.95)
+    _cv_txt(s, title, 0.56,2.26,7.7,1.6, 44, _CV["white"], _CV_MIN, True, PP_ALIGN.LEFT, 0.2)
+    _cv_txt(s, message, 0.60,4.30,7.1,1.7, 14.5, _CV["ivory"], _CV_GO, False, PP_ALIGN.LEFT)
+    if micro:
+        _cv_txt(s, micro, 0.60,6.74,9.5,0.3, 7.5, _CV["gray"], _CV_GO, False, PP_ALIGN.LEFT, 1.0)
+    if page_num is not None:
+        _cv_txt(s, str(page_num), 12.7,7.04,0.5,0.24, 9, _CV["gray"], _CV_GO, False, PP_ALIGN.RIGHT)
+    return s
+```
 
 ```python
 def _render_umap_scatter(points, kinds, ring_cid, out_path, w=2040, h=860):
