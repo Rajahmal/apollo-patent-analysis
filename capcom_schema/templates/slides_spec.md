@@ -1,4 +1,14 @@
-# PPTスライド仕様書 v6.7 — エディトリアル品質（モノトーン＋クリムゾン）+ ネイティブ図表 + 精読/総括/統計予測
+# PPTスライド仕様書 v6.8 — エディトリアル品質 + ネイティブ図表 + 統計予測 + Crimson Vector 章扉/ピラミッド
+
+> **v6.8 刷新（2026-06 / Crimson Vector V11 の章扉・結論ピラミッドを採用）**
+> - **章扉 `add_section_slide` を全面刷新**：黒の舞台（スキャンライン＋右の赤い建築面）＋巨大クリムゾン番号＋
+>   ゴースト＋明朝大見出し＋ SECTION ラベル。画像を一切使わずベクターのみ。
+> - **結論ピラミッド `add_pyramid_slide` を全面刷新**：`custGeom`(freeform) の **4点ポリゴンで各段の頂点を
+>   共通 apex/base 直線上に取り、辺を一直線に連続**させる。これにより「台形の積み重ね＝鏡持ち」を解消し、
+>   **1つの大きな連続ピラミッド**に見せる（右寄せ・はみ出し・側面ファセット・発光セパレータ・左に解説3箱）。
+> - **旧パターン（300pt ゴースト番号の章扉／`MSO_SHAPE.TRAPEZOID` 積み上げピラミッド）は削除**。
+> - 共通ベクター技法ヘルパー（`_cv_*`：base_stage / freeform poly / xOnLine / bandPoints 等）を追加。
+>   `build_freeform(Emu(x*914400),…, scale=1)` で連続バンドを描く。配色は Crimson Vector パレット（C7001E系）。
 
 > **v6.7 改良（2026-06 / 下端出所・ブランド名の非表示）**
 > - **出所ラベルをスライド下端ギリギリへ**（`add_source_label` の既定 y=6.55→6.98・幅を右下ページ番号と
@@ -998,76 +1008,131 @@ def add_title_slide(prs, title, subtitle, date, blank,
 **黒背景**（DARK_SECTION）。右側に見切れさせない巨大ゴースト番号（300pt・黒よりわずかに明るい墨）+ 表紙と統一の左端クリムゾン・ストリップ + 白テキストタイトル。
 
 ```python
-def add_section_slide(prs, section_num, title, blank, subtitle=None):
-    """セクション区切り — 黒背景 + 見切れない巨大ゴースト番号(300pt)でレイヤー感を出す。
+# ============================================================
+# Crimson Vector V11 ベクター技法（章扉・結論ピラミッド）
+# 画像を使わず custGeom(freeform) 4点ポリゴンで連続ピラミッドを描く。
+# 各段の頂点を「共通の apex/base を結ぶ直線」上に取り、辺を一直線に連続させる
+# （= 台形の積み重ね＝鏡持ち を回避し、1つの大きなピラミッドに見せる）。
+# ============================================================
+_CV = {"black":"020202","black3":"141414","white":"FFFFFF","ivory":"F6F2EC",
+       "crimson":"C7001E","crimson2":"8E0014","crimson3":"4A0008","redDark":"220003","gray":"8A8A8A"}
+_CV_SERIF = "Times New Roman"; _CV_MIN = "Yu Mincho"; _CV_GO = "Yu Gothic"
+_CV_EMU = 914400
+def _cvC(h): return RGBColor(int(h[0:2],16),int(h[2:4],16),int(h[4:6],16))
+def _cv_line_alpha(shp, op):
+    ln = shp._element.spPr.find(f'{{{A_NS}}}ln')
+    if ln is None: return
+    f = ln.find(f'{{{A_NS}}}solidFill')
+    if f is None: return
+    sg = f.find(f'{{{A_NS}}}srgbClr')
+    if sg is None: return
+    for a in sg.findall(f'{{{A_NS}}}alpha'): sg.remove(a)
+    etree.SubElement(sg, f'{{{A_NS}}}alpha').set('val', str(int(op*1000)))
+def _cv_rect(s,x,y,w,h,col,op=100,lcol=None,lop=100,lw=0.5):
+    sh=s.shapes.add_shape(MSO_SHAPE.RECTANGLE,Inches(x),Inches(y),Inches(w),Inches(h))
+    sh.fill.solid(); sh.fill.fore_color.rgb=_cvC(col)
+    if op<100: _set_fill_alpha(sh,op)
+    if lcol: sh.line.color.rgb=_cvC(lcol); sh.line.width=Pt(lw); _cv_line_alpha(sh,lop)
+    else: sh.line.fill.background()
+    return sh
+def _cv_shape(s,mso,x,y,w,h,col,op=100,lcol=None,lop=100,lw=0.5,rot=0):
+    sh=s.shapes.add_shape(mso,Inches(x),Inches(y),Inches(w),Inches(h))
+    if rot: sh.rotation=rot
+    sh.fill.solid(); sh.fill.fore_color.rgb=_cvC(col)
+    if op<100: _set_fill_alpha(sh,op)
+    if lcol: sh.line.color.rgb=_cvC(lcol); sh.line.width=Pt(lw); _cv_line_alpha(sh,lop)
+    else: sh.line.fill.background()
+    return sh
+def _cv_ln(s,x,y,dx,dy,col="FFFFFF",op=50,lw=0.5):
+    c=s.shapes.add_connector(MSO_CONNECTOR.STRAIGHT,Inches(x),Inches(y),Inches(x+dx),Inches(y+dy))
+    c.line.color.rgb=_cvC(col); c.line.width=Pt(lw); _cv_line_alpha(c,op); return c
+def _cv_poly(s,pts,col,op=100,lcol="FFFFFF",lop=30,lw=0.6):
+    fb=s.shapes.build_freeform(Emu(int(pts[0][0]*_CV_EMU)),Emu(int(pts[0][1]*_CV_EMU)),scale=1)
+    fb.add_line_segments([(Emu(int(x*_CV_EMU)),Emu(int(y*_CV_EMU))) for x,y in pts[1:]],close=True)
+    sh=fb.convert_to_shape(); sh.fill.solid(); sh.fill.fore_color.rgb=_cvC(col)
+    if op<100: _set_fill_alpha(sh,op)
+    if lcol is not None: sh.line.color.rgb=_cvC(lcol); sh.line.width=Pt(lw); _cv_line_alpha(sh,lop)
+    else: sh.line.fill.background()
+    return sh
+def _cv_txt(s,t,x,y,w,h,size,col,font="Yu Gothic",bold=False,align=PP_ALIGN.LEFT,spc=None,anchor=None):
+    tb=s.shapes.add_textbox(Inches(x),Inches(y),Inches(w),Inches(h)); tf=tb.text_frame
+    tf.word_wrap=True; tf.auto_size=MSO_AUTO_SIZE.NONE
+    tf.margin_left=0; tf.margin_right=0; tf.margin_top=0; tf.margin_bottom=0
+    if anchor: tf.vertical_anchor=anchor
+    p=tf.paragraphs[0]; p.alignment=align
+    lines=str(t).split("\n")
+    for k,ln_ in enumerate(lines):
+        r=p.add_run(); r.text=ln_; r.font.size=Pt(size); r.font.bold=bold
+        r.font.color.rgb=_cvC(col); r.font.name=font
+        rPr=r._r.get_or_add_rPr(); rPr.set('lang','ja-JP')
+        ea=rPr.find(f'{{{A_NS}}}ea')
+        if ea is None: ea=etree.SubElement(rPr,f'{{{A_NS}}}ea')
+        ea.set('typeface', _CV_MIN if font in (_CV_MIN,_CV_SERIF) else _CV_GO)
+        if spc: rPr.set('spc',str(int(spc*100)))
+        if k<len(lines)-1: etree.SubElement(p._p,f'{{{A_NS}}}br')
+    return tb
+def _cv_base_stage(s, red=True):
+    """黒の舞台＋スキャンライン＋右の赤い建築面（cinematic base）。"""
+    s.background.fill.solid(); s.background.fill.fore_color.rgb=_cvC(_CV["black"])
+    for i in range(18):
+        _cv_rect(s,i*0.42,0,0.43,7.5, _CV["black"] if i<7 else _CV["black3"], 100 if i<7 else max(0,30-i))
+    if red:
+        _cv_shape(s,MSO_SHAPE.PARALLELOGRAM,9.28,-0.15,4.45,7.85,_CV["crimson"],88,_CV["crimson"],8,0.2,-11)
+        _cv_shape(s,MSO_SHAPE.PARALLELOGRAM,10.15,-0.35,3.40,7.95,_CV["crimson2"],78,_CV["crimson"],16,0.35,-11)
+        _cv_shape(s,MSO_SHAPE.ISOSCELES_TRIANGLE,10.38,0.10,2.55,5.95,_CV["crimson3"],38,_CV["crimson"],18,0.35,0)
+        _cv_shape(s,MSO_SHAPE.ISOSCELES_TRIANGLE,11.02,0.55,1.65,4.70,_CV["black"],22,_CV["crimson"],30,0.3,0)
+        _cv_shape(s,MSO_SHAPE.PARALLELOGRAM,8.05,0.0,1.85,7.7,_CV["black"],66,_CV["white"],12,0.15,-17)
+    _cv_ln(s,8.0,-0.1,-2.4,7.7,_CV["white"],16,0.4)
+    _cv_ln(s,9.95,-0.2,-2.0,7.8,_CV["crimson"],18,0.6)
+    _cv_ln(s,12.65,0.0,-4.3,7.55,_CV["white"],22,0.45)
+    for i in range(24): _cv_ln(s,9.10+i*0.13,0.0,0,7.5,_CV["crimson"],max(4,18-i),0.25)
+    _cv_shape(s,MSO_SHAPE.TRAPEZOID,6.25,6.46,3.8,0.26,_CV["crimson"],15,_CV["crimson"],10,0.15,0)
+def _cv_xon(x1,y1,x2,y2,y): return x1+(x2-x1)*((y-y1)/(y2-y1))
+def _cv_band(ap,lb,rb,yt,yb):
+    return [(_cv_xon(*ap,*lb,yt),yt),(_cv_xon(*ap,*rb,yt),yt),(_cv_xon(*ap,*rb,yb),yb),(_cv_xon(*ap,*lb,yb),yb)]
+def _cv_inset(ap,lb,rb,yt,yb,it,ib,tr):
+    xlt=_cv_xon(*ap,*lb,yt)+it; xrt=_cv_xon(*ap,*rb,yt)-it; xlb=_cv_xon(*ap,*lb,yb)+ib; xrb=_cv_xon(*ap,*rb,yb)-ib
+    return [(xlt+tr,yt+0.10),(xrt-tr,yt+0.10),(xrb-tr,yb-0.12),(xlb+tr,yb-0.12)]
+def _cv_lfacet(ap,lb,yt,yb,inn):
+    xot=_cv_xon(*ap,*lb,yt); xob=_cv_xon(*ap,*lb,yb)
+    return [(xot,yt),(xot+inn,yt+0.08),(xob+inn,yb-0.08),(xob,yb)]
+def _cv_rfacet(ap,rb,yt,yb,inn):
+    xot=_cv_xon(*ap,*rb,yt); xob=_cv_xon(*ap,*rb,yb)
+    return [(xot-inn,yt+0.08),(xot,yt),(xob,yb),(xob-inn,yb-0.08)]
+def _cv_insight_box(s,idx,title,body,x,y,w,h):
+    _cv_rect(s,x,y,w,h,_CV["black"],92,_CV["crimson"],70,0.9)
+    _cv_rect(s,x,y,0.08,h,_CV["crimson"],100)
+    _cv_rect(s,x+0.08,y+0.08,w-0.16,h-0.16,_CV["crimson3"],28,_CV["crimson"],14,0.2)
+    _cv_txt(s,f"{idx:02d}",x+0.18,y+0.16,0.6,0.34,19,_CV["crimson"],_CV_SERIF,True)
+    _cv_txt(s,title,x+0.86,y+0.16,w-1.1,0.32,13.5,_CV["white"],_CV_MIN,True)
+    _cv_ln(s,x+0.86,y+0.55,w-1.1,0,_CV["crimson"],78,0.42)
+    _cv_txt(s,body,x+0.86,y+0.62,w-1.12,h-0.74,8.6,_CV["ivory"],_CV_GO,False)
 
-    章番号を右側にフル表示の背景として置き（クリップさせない）、その手前に
-    章タイトルを重ねて "舞台の幕間" の存在感を作る（柱0「インパクト演出」）。
-    表紙と同じ左端クリムゾン・ストリップでデッキの一貫性を持たせる。"""
+def add_section_slide(prs, section_num, title, blank, subtitle=None, en=None):
+    """章扉（Crimson Vector V11）：黒の舞台＋巨大クリムゾン番号＋ゴースト＋明朝大見出し＋
+    右の赤い建築オブジェ。画像なし・全てベクター。CURRENT_CHAPTER を更新する。"""
     global CURRENT_CHAPTER
-    CURRENT_CHAPTER = section_num   # 以降の本文頁の章目印に反映
-    slide = prs.slides.add_slide(blank)
-    bg = slide.background.fill
-    bg.solid()
-    bg.fore_color.rgb = DARK_SECTION
-
-    # 巨大ゴースト番号（背面・右側にフル表示。見切れさせず奥行きの主役にする）
-    ghost = slide.shapes.add_textbox(Inches(5.2), Inches(1.05), Inches(7.6), Inches(5.4))
-    tf_g = ghost.text_frame
-    tf_g.word_wrap = False
-    tf_g.auto_size = MSO_AUTO_SIZE.NONE
-    p_g = tf_g.paragraphs[0]
-    p_g.alignment = PP_ALIGN.RIGHT
-    run_g = p_g.add_run()
-    run_g.text = f"{section_num:02d}"
-    run_g.font.size = Pt(300)
-    run_g.font.color.rgb = GHOST_ON_DARK
-    run_g.font.bold = True
-    _apply_font(run_g, heading=True)
-
-    # 左端フル丈クリムゾン・ストリップ（表紙と統一）
-    strip = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(0.30), Inches(7.5))
-    strip.fill.solid()
-    strip.fill.fore_color.rgb = ACCENT
-    strip.line.fill.background()
-
-    # SECTION ラベル（赤・字間広め）
-    eb = slide.shapes.add_textbox(Inches(1.15), Inches(2.75), Inches(6), Inches(0.4))
-    eb.text_frame.word_wrap = True
-    eb.text_frame.auto_size = MSO_AUTO_SIZE.NONE
-    erun = eb.text_frame.paragraphs[0].add_run()
-    erun.text = f"SECTION {section_num:02d}"
-    erun.font.size = Pt(15); erun.font.bold = True; erun.font.color.rgb = RED_ON_DARK
-    _apply_font(erun, heading=True); _track(erun, 260)
-
-    # 太いクリムゾン罫
-    line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(1.18), Inches(3.32), Inches(2.8), Inches(0.10))
-    line.fill.solid()
-    line.fill.fore_color.rgb = ACCENT
-    line.line.fill.background()
-
-    # セクションタイトル（40pt White Bold 明朝・番号の手前に重ねる）
-    txBox = slide.shapes.add_textbox(Inches(1.15), Inches(3.55), Inches(8.0), Inches(1.7))
-    tf = txBox.text_frame
-    tf.word_wrap = True
-    tf.auto_size = MSO_AUTO_SIZE.NONE
-    set_text(tf.paragraphs[0], title, Pt(40), WHITE, bold=True, line_spacing=1.15, heading=True)
-
-    # サブタイトル（省略可・淡グレー）
+    CURRENT_CHAPTER = section_num
+    s = prs.slides.add_slide(blank)
+    _cv_base_stage(s, red=True)
+    num = f"{section_num:02d}"
+    _cv_txt(s, num, 0.42,0.10,4.72,2.12, 118, _CV["crimson"], _CV_SERIF, True, PP_ALIGN.LEFT, -3)
+    _cv_txt(s, num, 2.55,0.04,3.5,2.3, 110, _CV["black3"], _CV_SERIF, True, PP_ALIGN.LEFT, -3)
+    _cv_ln(s, 0.58,2.48,2.35,0, _CV["crimson"], 100, 0.95)
+    _cv_txt(s, title, 0.56,2.72,8.2,1.18, 40, _CV["white"], _CV_MIN, True, PP_ALIGN.LEFT, 0.2)
     if subtitle:
-        txBox2 = slide.shapes.add_textbox(Inches(1.18), Inches(5.35), Inches(7.6), Inches(0.8))
-        txBox2.text_frame.word_wrap = True
-        txBox2.text_frame.auto_size = MSO_AUTO_SIZE.NONE
-        set_text(txBox2.text_frame.paragraphs[0], subtitle, Pt(15), RGBColor(0xC2, 0xC2, 0xC6), heading=True)
-
-    # ボトムライン
-    bot = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(0), Inches(7.1), Inches(13.33), Emu(27432)
-    )
-    bot.fill.solid()
-    bot.fill.fore_color.rgb = ACCENT
-    bot.line.fill.background()
-    return slide
+        _cv_txt(s, "/  "+subtitle, 0.60,3.90,8.2,0.5, 14, _CV["white"], _CV_MIN, True)
+    _cv_txt(s, f"SECTION {section_num:02d}", 0.62,4.70,4.2,0.3, 8, _CV["gray"], _CV_GO, False, PP_ALIGN.LEFT, 2.0)
+    if en:
+        _cv_txt(s, en, 0.62,5.04,4.4,0.6, 7.5, _CV["gray"], _CV_GO, False, PP_ALIGN.LEFT, 1.2)
+    # 右の建築オブジェ（斜めパラレログラムの重ね＋細線）
+    _cv_shape(s, MSO_SHAPE.PARALLELOGRAM, 9.18,0.48,1.35,5.45, _CV["crimson2"], 84, _CV["crimson"], 45, 0.6, -8)
+    _cv_shape(s, MSO_SHAPE.PARALLELOGRAM, 9.74,0.68,1.28,5.36, _CV["redDark"], 100, _CV["crimson"], 28, 0.5, -8)
+    _cv_shape(s, MSO_SHAPE.PARALLELOGRAM, 9.98,0.88,0.78,4.95, _CV["black"], 80, _CV["white"], 20, 0.55, -8)
+    _cv_shape(s, MSO_SHAPE.PARALLELOGRAM, 10.44,0.58,0.92,5.62, _CV["crimson3"], 55, _CV["crimson"], 20, 0.4, -8)
+    _cv_ln(s, 9.70,0.63,0.0,5.25, _CV["white"], 22, 0.45)
+    _cv_ln(s, 10.48,0.67,0.0,5.15, _CV["crimson"], 65, 1.2)
+    return s
 ```
 
 ### 3.3 チャート+テキスト注釈スライド（主力 — 50%以上）
@@ -1890,56 +1955,52 @@ def add_triangle_slide(prs, title, sub_message, elements, blank,
 
 ```python
 def add_pyramid_slide(prs, title, sub_message, levels, blank,
-                      source=None, page_num=None):
-    """ピラミッド（上が小、下が大の台形積み重ね）
-
-    levels: [{"title":"萌芽技術", "detail":"ノイズ6テーマ"}, ...]  上→下の順
-    """
-    slide = prs.slides.add_slide(blank)
-    sub_y = add_title_shape(slide, title)
-    content_y = add_sub_message(slide, sub_message, y=sub_y)
-
-    n = len(levels)
-    total_h = 6.5 - content_y - 0.2
-    level_h = total_h / n
-    base_w = 10.0
-    center_x = 6.66  # スライド中央
-    colors = [RED_ACCENT, AMBER, ACCENT, BLUE, NAVY, RGBColor(0x2E, 0x8B, 0x57)]
-
-    for i, level in enumerate(levels):
-        ratio_top = (i + 0.3) / n
-        ratio_bot = (i + 1.3) / n
-        lw = base_w * (ratio_top + ratio_bot) / 2
-        lx = center_x - lw / 2
-        ly = content_y + i * level_h
-        color = colors[i % len(colors)]
-
-        trap = slide.shapes.add_shape(
-            MSO_SHAPE.TRAPEZOID, Inches(lx), Inches(ly),
-            Inches(lw), Inches(level_h - 0.05)
-        )
-        trap.fill.solid()
-        trap.fill.fore_color.rgb = color
-        trap.line.fill.background()
-
-        txBox = slide.shapes.add_textbox(
-            Inches(lx + 0.3), Inches(ly + 0.1),
-            Inches(lw - 0.6), Inches(level_h - 0.2)
-        )
-        tf = txBox.text_frame
-        tf.word_wrap = True
-        p = tf.paragraphs[0]
-        p.alignment = PP_ALIGN.CENTER
-        set_text(p, level["title"], Pt(14), WHITE, bold=True)
-        if level.get("detail"):
-            p2 = tf.add_paragraph()
-            p2.alignment = PP_ALIGN.CENTER
-            set_text(p2, level["detail"], Pt(11), WHITE)
-
+                      notes=None, source=None, page_num=None):
+    """結論ピラミッド（Crimson Vector V11）：右に大きく寄せた連続ピラミッド（custGeom 4点ポリゴンで
+    各段の辺を一直線に連続させ「1つのピラミッド」に見せる）＋左に3つの解説ボックス。画像なし。
+    levels: [{"title":..., "detail":...}] 上→下（最優先→土台）。各段の主役は結論テキスト。"""
+    s = prs.slides.add_slide(blank)
+    _cv_base_stage(s, red=True)
+    _cv_txt(s, title, 0.52,0.34,7.4,0.62, 24, _CV["white"], _CV_MIN, True, PP_ALIGN.LEFT, 0.4)
+    if sub_message:
+        _cv_txt(s, "/  "+sub_message, 0.58,1.06,7.2,0.30, 11.5, _CV["white"], _CV_MIN, True)
+    _cv_ln(s, 0.56,1.42,2.34,0, _CV["crimson"], 92, 1.0)
+    # 左：解説ボックス3つ
+    nt = notes or [{"title": lv.get("title",""), "body": lv.get("detail","")} for lv in levels]
+    _cv_txt(s, "EXECUTIVE COMMENTARY", 0.46,1.66,3.6,0.24, 8, _CV["crimson"], _CV_GO, False, PP_ALIGN.LEFT, 1.8)
+    ys = [1.98, 3.36, 4.74]
+    for i in range(min(3, len(nt))):
+        _cv_insight_box(s, i+1, nt[i].get("title",""), nt[i].get("body",""), 0.44, ys[i], 4.46, 1.30)
+    _cv_txt(s, "右のピラミッドは意思決定の優先度。最上段ほど優先度が高い。", 0.48,6.16,4.4,0.4, 8, _CV["gray"], _CV_GO)
+    # 右：連続ピラミッド
+    ap=(9.92,0.46); lb=(5.56,6.92); rb=(14.36,6.92)
+    bands=[dict(yt=0.78,yb=2.44,fill=_CV["crimson3"],inner=_CV["crimson2"]),
+           dict(yt=2.66,yb=4.38,fill=_CV["crimson2"],inner=_CV["redDark"]),
+           dict(yt=4.60,yb=6.68,fill=_CV["crimson"],inner=_CV["redDark"])]
+    _cv_poly(s,[(5.10,6.52),(13.90,6.52),(12.94,6.90),(4.80,6.90)],_CV["crimson"],26,_CV["crimson"],18,0.28)
+    _cv_ln(s,5.06,6.64,8.68,0,_CV["crimson"],95,2.2)
+    _cv_poly(s,[ap,rb,lb],_CV["black"],94,_CV["white"],46,0.65)
+    _cv_ln(s,*ap,lb[0]-ap[0],lb[1]-ap[1],_CV["crimson"],64,1.9)
+    _cv_ln(s,*ap,rb[0]-ap[0],rb[1]-ap[1],_CV["crimson"],64,1.9)
+    for idx,b in enumerate(bands):
+        _cv_poly(s,_cv_band(ap,lb,rb,b["yt"],b["yb"]),b["fill"],100,_CV["white"],16,0.82)
+        _cv_poly(s,_cv_inset(ap,lb,rb,b["yt"],b["yb"],0.18+idx*0.02,0.26+idx*0.05,0.06),b["inner"],max(0,20-idx*4),_CV["crimson"],38,0.22)
+        _cv_poly(s,_cv_lfacet(ap,lb,b["yt"],b["yb"],0.34+idx*0.02),_CV["black"],max(0,88-(12+idx*4)),_CV["white"],38,0.30)
+        _cv_poly(s,_cv_rfacet(ap,rb,b["yt"],b["yb"],0.34+idx*0.02),_CV["black"],max(0,88-(12+idx*4)),_CV["white"],38,0.30)
+        xl=_cv_xon(*ap,*lb,b["yb"]); xr=_cv_xon(*ap,*rb,b["yb"])
+        _cv_ln(s,xl,b["yb"],xr-xl,0,_CV["white"],85,1.0)
+    # 各段の結論テキスト（中央・括弧以降は省く）
+    pos=[(8.02,1.34,3.92,15.5),(6.98,3.28,6.26,16.0),(5.92,5.16,8.28,16.5)]
+    for i,lv in enumerate(levels[:3]):
+        x,y,w,sz=pos[i]
+        bt=str(lv.get("title","")).split("（")[0]
+        _cv_txt(s,bt,x,y,w,0.6,sz,_CV["white"],_CV_MIN,True,PP_ALIGN.CENTER)
+    _cv_txt(s,"DECISION PYRAMID / CUSTOM GEOMETRY",10.2,0.60,2.7,0.18,5.4,_CV["crimson"],_CV_GO,False,PP_ALIGN.LEFT,1.0)
     if source:
-        add_source_label(slide, source)
-    add_bottom_bar_and_footer(slide, page_num)
-    return slide
+        _cv_txt(s,"（出所）"+source,0.48,7.10,9.0,0.24,7,_CV["gray"],_CV_GO)
+    if page_num is not None:
+        _cv_txt(s,str(page_num),12.7,7.06,0.5,0.24,9,_CV["gray"],_CV_GO,False,PP_ALIGN.RIGHT)
+    return s
 ```
 
 ### 3.13 仮説検証スライド
