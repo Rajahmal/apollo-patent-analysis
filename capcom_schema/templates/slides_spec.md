@@ -1054,6 +1054,48 @@ def _cv_poly(s,pts,col,op=100,lcol="FFFFFF",lop=30,lw=0.6):
     if lcol is not None: sh.line.color.rgb=_cvC(lcol); sh.line.width=Pt(lw); _cv_line_alpha(sh,lop)
     else: sh.line.fill.background()
     return sh
+def _cv_grad_alpha(sh, op):
+    grad=sh._element.spPr.find(f'{{{A_NS}}}gradFill')
+    if grad is None: return
+    for srgb in grad.iter(f'{{{A_NS}}}srgbClr'):
+        for a in srgb.findall(f'{{{A_NS}}}alpha'): srgb.remove(a)
+        etree.SubElement(srgb,f'{{{A_NS}}}alpha').set('val',str(int(op*1000)))
+def _cv_grad_poly(s,pts,c1,c2,angle=90,lcol=None,lop=30,lw=0.6,op=100):
+    fb=s.shapes.build_freeform(Emu(int(pts[0][0]*_CV_EMU)),Emu(int(pts[0][1]*_CV_EMU)),scale=1)
+    fb.add_line_segments([(Emu(int(x*_CV_EMU)),Emu(int(y*_CV_EMU))) for x,y in pts[1:]],close=True)
+    sh=fb.convert_to_shape(); sh.fill.gradient()
+    gs=sh.fill.gradient_stops; gs[0].color.rgb=_cvC(c1); gs[0].position=0.0; gs[1].color.rgb=_cvC(c2); gs[1].position=1.0
+    try: sh.fill.gradient_angle=angle
+    except Exception: pass
+    if op<100: _cv_grad_alpha(sh,op)
+    if lcol is not None: sh.line.color.rgb=_cvC(lcol); sh.line.width=Pt(lw); _cv_line_alpha(sh,lop)
+    else: sh.line.fill.background()
+    return sh
+def _cv_grad_shape(s,mso,x,y,w,h,c1,c2,angle=90,lcol=None,lop=30,lw=0.6,rot=0,op=100):
+    sh=s.shapes.add_shape(mso,Inches(x),Inches(y),Inches(w),Inches(h))
+    if rot: sh.rotation=rot
+    sh.fill.gradient()
+    gs=sh.fill.gradient_stops; gs[0].color.rgb=_cvC(c1); gs[0].position=0.0; gs[1].color.rgb=_cvC(c2); gs[1].position=1.0
+    try: sh.fill.gradient_angle=angle
+    except Exception: pass
+    if op<100: _cv_grad_alpha(sh,op)
+    if lcol is not None: sh.line.color.rgb=_cvC(lcol); sh.line.width=Pt(lw); _cv_line_alpha(sh,lop)
+    else: sh.line.fill.background()
+    return sh
+def _cv_txt_two(s,l1,l2,x,y,w,s1,s2,c1="FFFFFF",c2="F6F2EC"):
+    tb=s.shapes.add_textbox(Inches(x),Inches(y),Inches(w),Inches(1.2)); tf=tb.text_frame
+    tf.word_wrap=True; tf.auto_size=MSO_AUTO_SIZE.NONE
+    tf.margin_left=0; tf.margin_right=0; tf.margin_top=0; tf.margin_bottom=0
+    def _mk(p,t,sz,col,font,bold):
+        r=p.add_run(); r.text=str(t).replace("**",""); r.font.size=Pt(sz); r.font.bold=bold
+        r.font.color.rgb=_cvC(col); r.font.name=font
+        rPr=r._r.get_or_add_rPr(); rPr.set('lang','ja-JP')
+        ea=rPr.find(f'{{{A_NS}}}ea')
+        if ea is None: ea=etree.SubElement(rPr,f'{{{A_NS}}}ea')
+        ea.set('typeface', _CV_MIN if font in (_CV_MIN,_CV_SERIF) else _CV_GO)
+    p1=tf.paragraphs[0]; p1.alignment=PP_ALIGN.CENTER; _mk(p1,l1,s1,c1,_CV_MIN,True)
+    p2=tf.add_paragraph(); p2.alignment=PP_ALIGN.CENTER; _mk(p2,l2,s2,c2,_CV_GO,False)
+    return tb
 def _cv_txt(s,t,x,y,w,h,size,col,font="Yu Gothic",bold=False,align=PP_ALIGN.LEFT,spc=None,anchor=None):
     tb=s.shapes.add_textbox(Inches(x),Inches(y),Inches(w),Inches(h)); tf=tb.text_frame
     tf.word_wrap=True; tf.auto_size=MSO_AUTO_SIZE.NONE
@@ -1126,7 +1168,7 @@ def add_section_slide(prs, section_num, title, blank, subtitle=None, en=None):
     if en:
         _cv_txt(s, en, 0.62,5.04,4.4,0.6, 7.5, _CV["gray"], _CV_GO, False, PP_ALIGN.LEFT, 1.2)
     # 右の建築オブジェ（斜めパラレログラムの重ね＋細線）
-    _cv_shape(s, MSO_SHAPE.PARALLELOGRAM, 9.18,0.48,1.35,5.45, _CV["crimson2"], 84, _CV["crimson"], 45, 0.6, -8)
+    _cv_grad_shape(s, MSO_SHAPE.PARALLELOGRAM, 9.18,0.48,1.35,5.45, _CV["crimson"], _CV["crimson3"], 55, _CV["crimson"], 45, 0.6, -8, op=90)
     _cv_shape(s, MSO_SHAPE.PARALLELOGRAM, 9.74,0.68,1.28,5.36, _CV["redDark"], 100, _CV["crimson"], 28, 0.5, -8)
     _cv_shape(s, MSO_SHAPE.PARALLELOGRAM, 9.98,0.88,0.78,4.95, _CV["black"], 80, _CV["white"], 20, 0.55, -8)
     _cv_shape(s, MSO_SHAPE.PARALLELOGRAM, 10.44,0.58,0.92,5.62, _CV["crimson3"], 55, _CV["crimson"], 20, 0.4, -8)
@@ -1983,18 +2025,19 @@ def add_pyramid_slide(prs, title, sub_message, levels, blank,
     _cv_ln(s,*ap,lb[0]-ap[0],lb[1]-ap[1],_CV["crimson"],64,1.9)
     _cv_ln(s,*ap,rb[0]-ap[0],rb[1]-ap[1],_CV["crimson"],64,1.9)
     for idx,b in enumerate(bands):
-        _cv_poly(s,_cv_band(ap,lb,rb,b["yt"],b["yb"]),b["fill"],100,_CV["white"],16,0.82)
-        _cv_poly(s,_cv_inset(ap,lb,rb,b["yt"],b["yb"],0.18+idx*0.02,0.26+idx*0.05,0.06),b["inner"],max(0,20-idx*4),_CV["crimson"],38,0.22)
+        _cv_grad_poly(s,_cv_band(ap,lb,rb,b["yt"],b["yb"]),b["inner"],b["fill"],90,_CV["white"],16,0.82)
+        _cv_grad_poly(s,_cv_inset(ap,lb,rb,b["yt"],b["yb"],0.22+idx*0.02,0.32+idx*0.05,0.06),b["inner"],b["fill"],90,_CV["crimson"],40,0.22,op=72)
         _cv_poly(s,_cv_lfacet(ap,lb,b["yt"],b["yb"],0.34+idx*0.02),_CV["black"],max(0,88-(12+idx*4)),_CV["white"],38,0.30)
         _cv_poly(s,_cv_rfacet(ap,rb,b["yt"],b["yb"],0.34+idx*0.02),_CV["black"],max(0,88-(12+idx*4)),_CV["white"],38,0.30)
         xl=_cv_xon(*ap,*lb,b["yb"]); xr=_cv_xon(*ap,*rb,b["yb"])
         _cv_ln(s,xl,b["yb"],xr-xl,0,_CV["white"],85,1.0)
-    # 各段の結論テキスト（中央・括弧以降は省く）
-    pos=[(8.02,1.34,3.92,15.5),(6.98,3.28,6.26,16.0),(5.92,5.16,8.28,16.5)]
+    # 各段の結論テキスト（2行：1行目=結論／2行目=結論の具体。ジャンプ率1.5倍・中央）
+    pos=[(8.10,1.16,3.84,21,14),(7.00,3.00,6.22,24,16),(5.96,4.92,8.20,27,18)]
     for i,lv in enumerate(levels[:3]):
-        x,y,w,sz=pos[i]
-        bt=str(lv.get("title","")).split("（")[0]
-        _cv_txt(s,bt,x,y,w,0.6,sz,_CV["white"],_CV_MIN,True,PP_ALIGN.CENTER)
+        x,y,w,s1,s2=pos[i]
+        l1=str(lv.get("title","")).split("（")[0]
+        l2=str(lv.get("concrete", lv.get("detail",""))).split("（")[0]
+        _cv_txt_two(s,l1,l2,x,y,w,s1,s2)
     _cv_txt(s,"DECISION PYRAMID / CUSTOM GEOMETRY",10.2,0.60,2.7,0.18,5.4,_CV["crimson"],_CV_GO,False,PP_ALIGN.LEFT,1.0)
     if source:
         _cv_txt(s,"（出所）"+source,0.48,7.10,9.0,0.24,7,_CV["gray"],_CV_GO)
