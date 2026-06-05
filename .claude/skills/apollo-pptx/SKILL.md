@@ -13,14 +13,14 @@ command: /pptx
 - 「PPTXを作って」「スライドにして」「プレゼン資料を作成」「`/pptx`」等を検知した時点で、
   **データ調査や自前のpython記述を始める前に**本スキルを発動し、`slides_spec.md` を読み込んでから着手する。
 - スキルを使わず素のpython-pptxで自己流に組むことを禁止する（品質・配色・用語ルールが崩れるため）。
-- 別系統の仕様（旧v5.0 NAVY配色など）が混在していても、**本スキルが指す `slides_spec.md`（現行 v6.10）を正**とする。
+- 別系統の仕様（旧v5.0 NAVY配色など）が混在していても、**本スキルが指す `slides_spec.md`（現行 v6.11）を正**とする。
 
 ## ⚠️ 優先順位ルール（最重要・厳守）
 
 **スライド生成時は `capcom_schema/templates/slides_spec.md` を最優先で参照すること。**
 
 - 本SKILL.mdの記述（関数名・スライド比率・ポンチ絵パターン数・カラー定義など）と `slides_spec.md` の記述が**矛盾する場合、必ず `slides_spec.md` を採用する**
-- 本SKILL.mdは概要・起動条件・運用ルールを示すメタ文書であり、実装仕様の正は `slides_spec.md`（現行 v6.10、スライドタイプ15種＋考察系＋発見の道筋＋統計予測）にある
+- 本SKILL.mdは概要・起動条件・運用ルールを示すメタ文書であり、実装仕様の正は `slides_spec.md`（現行 v6.11、スライドタイプ15種＋考察系＋発見の道筋＋統計予測）にある
 - 関数名の例: SKILL.md が `add_process_flow()` / `add_matrix_2x2()` などを記載していても、実際は `slides_spec.md` の `add_process_slide()` / `add_matrix_slide()` 等を使用すること
 
 ### v6.1 仕様の要点（実運用フィードバック反映・詳細は slides_spec.md 冒頭）
@@ -122,7 +122,8 @@ BORDER_GRAY: #D8DADD  (罫線)
   `add_lifecycle_curve_slide`（**S字曲線版**＝累積ロジスティック回帰の曲線＋観測点＋変曲点◇を重ね描き）/
   `add_query_logic_slide`（**検索式**＝母集団論理式の表＋設計意図【要約】＋最終論理式。目次の直後に置く）/
   `add_invention_zone_slide`（**発明アイディア**＝Hot/Remote/Battleの3ゾーン。暗赤背景＋想定独立請求項案・発明のポイント・先行技術・請求項作成ロジックの4ブロック）/
-  `add_patent_deepdive_slide`（**主要特許 深掘り**＝書誌＋解決課題と独立請求項の構成要件分解＋戦略的意義）/
+  `add_patent_deepdive_slide`（**クラスタの注目特許**＝クラスタ分析の延長。書誌＋解決課題と『位置づけ・着目理由』『この特許の面白さ』で1件を紹介）/
+  `add_pest_slide`（**簡易PEST**＝2x2の政治/経済/社会/技術。各象限にMaterial Symbolアイコン。検索式の直後に置く）/
   `add_closing_slide`（**クロージング**＝v16 Template B。暗赤背景＋『分析による発見／仮説のアンサー／とるべき事業戦略』の3行で「だから何をするか」で締める）。
 - **発明アイディア3ゾーン（`add_invention_zone_slide`）**: 分析結果を出願案に変換する締めの主役級スライド。
   **Hot**＝近年ホット領域に攻めの出願／**Remote**＝ホワイトスペース（遠縁シナジー）／**Battle**＝競合の得意領域に差分軸で攻め込む。

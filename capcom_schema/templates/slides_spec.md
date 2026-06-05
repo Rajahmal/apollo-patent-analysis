@@ -1,4 +1,7 @@
-# PPTスライド仕様書 v6.10 — Crimson Vector + Zone-Claim 発明アイディア/深掘り/白ピラミッド
+# PPTスライド仕様書 v6.11 — Crimson Vector + Zone-Claim + 検索式/PEST/クラスタ注目特許
+
+> **v6.11 追加（2026-06）**：簡易PEST `add_pest_slide`（2x2・各象限Material Symbol）。主要特許深掘りを『クラスタの注目特許（位置づけ・着目理由／面白さ）』に再設計（請求項分解は廃止）。
+
 
 > **v6.10 追加（2026-06 / Zone-Claim v16 取り込み）**
 > - **発明アイディアスライド** `add_invention_zone_slide`（Hot/Remote/Battle の3ゾーン。暗赤背景画像＋半透明パネル。想定独立請求項案・発明のポイント・先行技術・請求項作成ロジックの4ブロック固定）。
@@ -2821,6 +2824,50 @@ def _render_umap_scatter(points, kinds, ring_cid, out_path, w=2040, h=860):
     return w / float(h)   # アスペクト比（w/h）
 
 
+def add_pest_slide(prs, title, sub_message, pest, blank, source=None, page_num=None):
+    """簡易PEST分析（2x2）。各象限に Material Symbol アイコン＋見出し＋箇条書き。
+    pest: {"P":{"label","icon","points":[..]},"E":..,"S":..,"T":..}（政治/経済/社会/技術）"""
+    slide = prs.slides.add_slide(blank)
+    sub_y = add_title_shape(slide, title, label="PEST 分析")
+    content_y = add_sub_message(slide, sub_message, y=sub_y) if sub_message else sub_y + 0.1
+    top = content_y + 0.08
+    gap = 0.30
+    cw = (CONTENT_W - gap) / 2.0
+    ch = (6.5 - top - gap) / 2.0
+    order = [("P", 0, 0), ("E", 1, 0), ("S", 0, 1), ("T", 1, 1)]
+    for key, cx_i, cy_i in order:
+        d = pest.get(key, {})
+        x = MARGIN_L + cx_i * (cw + gap)
+        y = top + cy_i * (ch + gap)
+        card = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(x), Inches(y), Inches(cw), Inches(ch))
+        card.fill.solid(); card.fill.fore_color.rgb = PALE_GRAY; card.line.fill.background()
+        tbar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(x), Inches(y), Inches(cw), Emu(64008))
+        tbar.fill.solid(); tbar.fill.fore_color.rgb = ACCENT; tbar.line.fill.background()
+        # アイコン（Material Symbol → PNG）
+        ipath = material_icon_png(d.get("icon", ""), (0xC5, 0x12, 0x12), px=200) if d.get("icon") else None
+        ix = x + 0.26; iy = y + 0.24
+        if ipath:
+            slide.shapes.add_picture(ipath, Inches(ix), Inches(iy), Inches(0.6), Inches(0.6))
+        # 見出し（P 政治・規制）
+        hd = slide.shapes.add_textbox(Inches(x + (1.0 if ipath else 0.26)), Inches(y + 0.30), Inches(cw - 1.2), Inches(0.5))
+        hp = hd.text_frame.paragraphs[0]
+        r0 = hp.add_run(); r0.text = key + "  "; r0.font.size = Pt(22); r0.font.bold = True
+        r0.font.color.rgb = ACCENT; _apply_font(r0, heading=True)
+        r1 = hp.add_run(); r1.text = d.get("label", ""); r1.font.size = Pt(14); r1.font.bold = True
+        r1.font.color.rgb = INK; _apply_font(r1, heading=True)
+        # 箇条書き
+        bd = slide.shapes.add_textbox(Inches(x + 0.28), Inches(y + 1.02), Inches(cw - 0.5), Inches(ch - 1.12))
+        bt = bd.text_frame; bt.word_wrap = True; bt.auto_size = MSO_AUTO_SIZE.NONE
+        for j, p in enumerate(d.get("points", [])):
+            para = bt.paragraphs[0] if j == 0 else bt.add_paragraph()
+            add_rich_runs(para, "・" + p, base_size=Pt(11.5), base_color=DARK_GRAY, bold_color=INK, line_spacing=1.3)
+            para.space_after = Pt(4)
+    if source:
+        add_source_label(slide, source)
+    add_bottom_bar_and_footer(slide, page_num)
+    return slide
+
+
 def add_invention_zone_slide(prs, zone, blank, page_num=None):
     """v16 Template A：発明アイディアスライド（Hot/Remote/Battle 各1枚）。暗赤背景＋半透明パネル。
     zone: {zoneName, headline, subtitle, claimDraft, problem, inventionPoint,
@@ -2869,59 +2916,52 @@ def add_invention_zone_slide(prs, zone, blank, page_num=None):
 
 
 def add_patent_deepdive_slide(prs, title, sub_message, patent, blank, source=None, page_num=None):
-    """主要特許 深掘り（1件）：書誌＋解決課題（左）と、独立請求項の構成要件分解＋戦略的意義（右）。白地・明スライド。
-    patent: {"number","applicant","year","ipc","problem","elements":[..],"significance":..}"""
+    """クラスタ分析の延長：注目クラスタにある1件を『紹介』する頁。特許の分解はしない。
+    左＝書誌＋解決課題、右＝このクラスタでの位置づけ・着目理由／この特許の面白さ。
+    patent: {number,applicant,year,ipc,problem,position,interest}"""
     slide = prs.slides.add_slide(blank)
-    sub_y = add_title_shape(slide, title, label="主要特許 深掘り")
+    sub_y = add_title_shape(slide, title, label="クラスタの注目特許")
     content_y = add_sub_message(slide, sub_message, y=sub_y) if sub_message else sub_y + 0.1
-    top = content_y + 0.05
-    # 左：書誌＋課題
-    lx, lw = MARGIN_L, 4.6
-    lb_box = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(lx), Inches(top), Inches(lw), Inches(6.5 - top))
-    lb_box.fill.solid(); lb_box.fill.fore_color.rgb = PALE_GRAY; lb_box.line.fill.background()
-    bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(lx), Inches(top), Emu(64008), Inches(6.5 - top))
+    top = content_y + 0.05; bottomY = 6.5
+    # 左：書誌＋解決課題
+    lx, lw = MARGIN_L, 4.7
+    lbx = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(lx), Inches(top), Inches(lw), Inches(bottomY - top))
+    lbx.fill.solid(); lbx.fill.fore_color.rgb = PALE_GRAY; lbx.line.fill.background()
+    bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(lx), Inches(top), Emu(64008), Inches(bottomY - top))
     bar.fill.solid(); bar.fill.fore_color.rgb = ACCENT; bar.line.fill.background()
     yy = top + 0.18
-    for klabel, kval in [("公報番号", patent.get("number", "")), ("出願人", patent.get("applicant", "")),
-                         ("出願年", str(patent.get("year", ""))), ("主分類(IPC)", patent.get("ipc", ""))]:
-        kl = slide.shapes.add_textbox(Inches(lx + 0.22), Inches(yy), Inches(1.3), Inches(0.24))
-        set_text(kl.text_frame.paragraphs[0], klabel, Pt(10), MEDIUM_GRAY, bold=True)
-        kv = slide.shapes.add_textbox(Inches(lx + 1.5), Inches(yy), Inches(lw - 1.7), Inches(0.5))
-        kvt = kv.text_frame; kvt.word_wrap = True; kvt.auto_size = MSO_AUTO_SIZE.NONE
-        set_text(kvt.paragraphs[0], kval, Pt(11), INK, bold=True, line_spacing=1.1)
+    for kl, kv in [("公報番号", patent.get("number", "")), ("出願人", patent.get("applicant", "")),
+                   ("出願年", str(patent.get("year", ""))), ("主分類(IPC)", patent.get("ipc", ""))]:
+        a = slide.shapes.add_textbox(Inches(lx + 0.22), Inches(yy), Inches(1.35), Inches(0.24))
+        set_text(a.text_frame.paragraphs[0], kl, Pt(10), MEDIUM_GRAY, bold=True)
+        b = slide.shapes.add_textbox(Inches(lx + 1.55), Inches(yy), Inches(lw - 1.75), Inches(0.5))
+        bt = b.text_frame; bt.word_wrap = True; bt.auto_size = MSO_AUTO_SIZE.NONE
+        set_text(bt.paragraphs[0], kv, Pt(11), INK, bold=True, line_spacing=1.1)
         yy += 0.5
-    yy += 0.05
+    yy += 0.06
     pl = slide.shapes.add_textbox(Inches(lx + 0.22), Inches(yy), Inches(lw - 0.4), Inches(0.26))
     set_text(pl.text_frame.paragraphs[0], "解決課題", Pt(11), ACCENT, bold=True)
-    pb = slide.shapes.add_textbox(Inches(lx + 0.22), Inches(yy + 0.32), Inches(lw - 0.42), Inches(6.4 - (yy + 0.32)))
+    pb = slide.shapes.add_textbox(Inches(lx + 0.22), Inches(yy + 0.32), Inches(lw - 0.42), Inches(bottomY - (yy + 0.42)))
     pbt = pb.text_frame; pbt.word_wrap = True; pbt.auto_size = MSO_AUTO_SIZE.NONE
     add_rich_runs(pbt.paragraphs[0], patent.get("problem", ""), base_size=Pt(11.5), base_color=DARK_GRAY, bold_color=INK, line_spacing=1.4)
-    # 右：構成要件の分解＋意義
+    # 右：2枠（位置づけ・着目理由／面白さ）
     rx = lx + lw + 0.3; rw = 13.33 - rx - 0.7
-    el = slide.shapes.add_textbox(Inches(rx), Inches(top), Inches(rw), Inches(0.3))
-    set_text(el.text_frame.paragraphs[0], "独立請求項の構成要件（分解）", Pt(12), ACCENT, bold=True)
-    elements = patent.get("elements", [])
-    ey = top + 0.42; eh = (5.95 - ey) / max(1, len(elements))
-    for i, el_ in enumerate(elements):
-        ry = ey + i * eh
-        card = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(rx), Inches(ry), Inches(rw), Inches(eh - 0.1))
-        card.fill.solid(); card.fill.fore_color.rgb = PALE_GRAY if i % 2 == 0 else RGBColor(0xFF, 0xFF, 0xFF); card.line.fill.background()
-        tag = slide.shapes.add_textbox(Inches(rx + 0.12), Inches(ry + 0.08), Inches(0.5), Inches(0.3))
-        set_text(tag.text_frame.paragraphs[0], chr(65 + i), Pt(14), ACCENT, bold=True, heading=True)
-        tx = slide.shapes.add_textbox(Inches(rx + 0.62), Inches(ry + 0.06), Inches(rw - 0.74), Inches(eh - 0.16))
-        txt = tx.text_frame; txt.word_wrap = True; txt.auto_size = MSO_AUTO_SIZE.NONE
-        add_rich_runs(txt.paragraphs[0], el_, base_size=Pt(11), base_color=DARK_GRAY, bold_color=INK, line_spacing=1.25)
-    sig = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(rx), Inches(6.02), Inches(rw), Inches(0.5))
-    sig.fill.solid(); sig.fill.fore_color.rgb = ACCENT; sig.line.fill.background()
-    st = slide.shapes.add_textbox(Inches(rx + 0.18), Inches(6.08), Inches(rw - 0.3), Inches(0.4))
-    stt = st.text_frame; stt.word_wrap = True; stt.auto_size = MSO_AUTO_SIZE.NONE
-    set_text(stt.paragraphs[0], "戦略的意義： " + patent.get("significance", ""), Pt(11), RGBColor(0xFF, 0xFF, 0xFF), bold=True, line_spacing=1.15)
+    h = (bottomY - top - 0.24) / 2
+    for k, (lab, key) in enumerate([("このクラスタでの位置づけ・着目理由", "position"), ("この特許の面白さ", "interest")]):
+        ry = top + k * (h + 0.24)
+        bx = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(rx), Inches(ry), Inches(rw), Inches(h))
+        bx.fill.solid(); bx.fill.fore_color.rgb = PALE_GRAY; bx.line.fill.background()
+        rb = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(rx), Inches(ry), Emu(64008), Inches(h))
+        rb.fill.solid(); rb.fill.fore_color.rgb = ACCENT; rb.line.fill.background()
+        lb = slide.shapes.add_textbox(Inches(rx + 0.22), Inches(ry + 0.14), Inches(rw - 0.4), Inches(0.3))
+        set_text(lb.text_frame.paragraphs[0], lab, Pt(12.5), ACCENT, bold=True)
+        bd = slide.shapes.add_textbox(Inches(rx + 0.22), Inches(ry + 0.52), Inches(rw - 0.42), Inches(h - 0.64))
+        bdt = bd.text_frame; bdt.word_wrap = True; bdt.auto_size = MSO_AUTO_SIZE.NONE
+        add_rich_runs(bdt.paragraphs[0], patent.get(key, ""), base_size=Pt(12), base_color=DARK_GRAY, bold_color=INK, line_spacing=1.45)
     if source:
         add_source_label(slide, source)
     add_bottom_bar_and_footer(slide, page_num)
     return slide
-
-
 def add_semantic_map_slide(prs, title, sub_message, points, callouts, blank,
                            label="意味マップ", source=None, page_num=None,
                            footnote=None, ring_cid=None):
