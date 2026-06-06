@@ -1,4 +1,7 @@
-# PPTスライド仕様書 v6.11 — Crimson Vector + Zone-Claim + 検索式/PEST/クラスタ注目特許
+# PPTスライド仕様書 v6.12 — 発明アイディア(白背景)・3点ステートメント(総括/クロージング共通)
+
+> **v6.12 改良**：発明アイディアを白背景画像＋黒文字＋赤アクセントに（先行技術はクレーム1全文）。総括とクロージングを `add_statement_slide`（暗赤背景＋白塗半透明60%の3行・タイトルはadd_title_shapeで整合）に統一。add_title_shape に color 引数追加。
+
 
 > **v6.11 追加（2026-06）**：簡易PEST `add_pest_slide`（2x2・各象限Material Symbol）。主要特許深掘りを『クラスタの注目特許（位置づけ・着目理由／面白さ）』に再設計（請求項分解は廃止）。
 
@@ -481,7 +484,7 @@ def set_text(p, text, size, color, bold=False, line_spacing=None, heading=False)
 ### スライドタイトル（結論型 + 下線）
 
 ```python
-def add_title_shape(slide, text, x=MARGIN_L, y=0.55, w=CONTENT_W, label=None):
+def add_title_shape(slide, text, x=MARGIN_L, y=0.55, w=CONTENT_W, label=None, color=None):
     """スライドタイトル（20-30pt Bold INK + 任意の赤ラベル）
 
     タイトル＝結論。「～」で副題を付け、**32文字以内の1行**でストーリーを完結。
@@ -523,8 +526,9 @@ def add_title_shape(slide, text, x=MARGIN_L, y=0.55, w=CONTENT_W, label=None):
     tf.auto_size = MSO_AUTO_SIZE.NONE
     p = tf.paragraphs[0]
     # タイトルは墨・明朝（Yu Mincho）。`～` 以降の副題のみクリムゾンで締める運用も可
-    add_rich_runs(p, text, base_size=font_size, base_color=INK,
-                  bold_color=INK, force_bold=True, line_spacing=1.18, heading=True)
+    _tc = color if color is not None else INK
+    add_rich_runs(p, text, base_size=font_size, base_color=_tc,
+                  bold_color=_tc, force_bold=True, line_spacing=1.18, heading=True)
 
     # （改良3）サブメッセージ（タイトル直下のグレー帯）を少し上へ。返り値の余白を詰める。
     return cy + box_h + 0.00  # サブメッセージの開始y座標を返す
@@ -1144,7 +1148,8 @@ def _cv_base_stage(s, red=True):
     _cv_ln(s,12.65,0.0,-4.3,7.55,_CV["white"],22,0.45)
     for i in range(24): _cv_ln(s,9.10+i*0.13,0.0,0,7.5,_CV["crimson"],max(4,18-i),0.25)
     _cv_shape(s,MSO_SHAPE.TRAPEZOID,6.25,6.46,3.8,0.26,_CV["crimson"],15,_CV["crimson"],10,0.15,0)
-CV_BG_PATH = ""   # v16 暗赤背景画像のパス（build側で設定）。空なら暗色ベタで代替。
+CV_BG_PATH = ""
+CV_BG_LIGHT_PATH = ""   # v16 暗赤背景画像のパス（build側で設定）。空なら暗色ベタで代替。
 def _cv_bg_image(slide, overlay=72):
     """v16: 暗赤背景画像を全面に敷き、黒の半透明オーバーレイで可読性を確保する。"""
     if CV_BG_PATH and os.path.exists(CV_BG_PATH):
@@ -2763,25 +2768,45 @@ def add_query_logic_slide(prs, title, sub_message, rows, intent, blank,
     return slide
 
 
-def add_closing_slide(prs, finding, answer, strategy, blank, page_num=None, title=None, sub=None):
-    """v16 Template B：クロージング。暗赤背景＋3行（分析による発見／仮説のアンサー／とるべき事業戦略）。
-    『何が分かったか』でなく『だから何をするか』で締める。"""
-    V = _V16
+def add_statement_slide(prs, title, sub, rows, blank, page_num=None, emphasize_last=True):
+    """暗赤背景の3点ステートメント（総括・クロージング共通）。タイトルは他スライドと整合（add_title_shape・白）。
+    各行は白塗り半透明パネル＋赤ラベル＋黒本文。rows=[(label, text) x3]。"""
     s = prs.slides.add_slide(blank)
     _cv_bg_image(s, overlay=70)
-    _cv_txt(s, title or "クロージング｜分析結果を、出願と事業戦略へ変換する", 0.64, 0.30, 11.9, 0.6, 27, V["white"], _CV_GO, True)
-    _cv_rect(s, 0.64, 1.02, 2.55, 0.05, V["red"], 100)
-    _cv_txt(s, sub or "「分析による発見」「仮説のアンサー」「とるべき事業戦略」の3本立てで締める。", 0.66, 1.16, 12.0, 0.3, 14.0, V["muted"], _CV_GO)
-    rows = [("分析による発見", finding), ("仮説のアンサー", answer), ("とるべき事業戦略", strategy)]
-    for i, (lab, val) in enumerate(rows):
-        y = 1.74 + i * 1.74
-        _cv_panel(s, 0.76, y, 11.82, 1.34, fill=V["panel2"], op=56,
-                  line=(V["red"] if i == 2 else V["line2"]), lop=(98 if i == 2 else 88), lw=(1.3 if i == 2 else 1.0))
-        _cv_txt(s, lab, 1.02, y + 0.22, 2.3, 0.3, 15.8, V["red"], _CV_GO, True)
-        _cv_txt(s, val, 3.42, y + 0.20, 8.7, 0.95, 18.0, V["white"], _CV_GO, True, anchor=MSO_ANCHOR.MIDDLE)
+    add_title_shape(s, title, color=_cvC(_V16["white"]))
+    if sub:
+        st = s.shapes.add_textbox(Inches(MARGIN_L), Inches(1.30), Inches(CONTENT_W), Inches(0.3))
+        set_text(st.text_frame.paragraphs[0], sub, Pt(12.5), _cvC(_V16["muted"]))
+    for i, (lab, val) in enumerate(rows[:3]):
+        y = 1.86 + i * 1.66
+        pan = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.76), Inches(y), Inches(11.82), Inches(1.42))
+        try: pan.adjustments[0] = 0.05
+        except Exception: pass
+        pan.fill.solid(); pan.fill.fore_color.rgb = RGBColor(0xFF, 0xFF, 0xFF); _set_fill_alpha(pan, 60)
+        if emphasize_last and i == 2:
+            pan.line.color.rgb = ACCENT; pan.line.width = Pt(1.6)
+        else:
+            pan.line.color.rgb = RGBColor(0xFF, 0xFF, 0xFF); pan.line.width = Pt(0.75); _cv_line_alpha(pan, 55)
+        set_text(s.shapes.add_textbox(Inches(1.04), Inches(y + 0.22), Inches(2.4), Inches(0.34)).text_frame.paragraphs[0],
+                 lab, Pt(15.5), ACCENT, bold=True)
+        vb = s.shapes.add_textbox(Inches(3.52), Inches(y + 0.18), Inches(8.78), Inches(1.06))
+        vt = vb.text_frame; vt.word_wrap = True; vt.auto_size = MSO_AUTO_SIZE.NONE
+        vt.vertical_anchor = MSO_ANCHOR.MIDDLE
+        add_rich_runs(vt.paragraphs[0], val, base_size=Pt(15), base_color=RGBColor(0x14, 0x14, 0x16), bold_color=ACCENT, line_spacing=1.28)
     if page_num is not None:
-        _cv_txt(s, str(page_num), 12.7, 7.06, 0.5, 0.24, 9, V["muted2"], _CV_GO, False, PP_ALIGN.RIGHT)
+        set_text(s.shapes.add_textbox(Inches(12.45), Inches(7.02), Inches(0.55), Inches(0.25)).text_frame.paragraphs[0],
+                 str(page_num), Pt(10), _cvC(_V16["muted2"]))
     return s
+
+
+def add_closing_slide(prs, finding, answer, strategy, blank, page_num=None, title=None, sub=None):
+    """クロージング（add_statement_slide を利用）。『何が分かったか』でなく『だから何をするか』で締める。"""
+    return add_statement_slide(
+        prs,
+        title or "クロージング — 分析結果を、出願と事業戦略へ",
+        sub or "「分析による発見」「仮説のアンサー」「とるべき事業戦略」の3本立てで締める。",
+        [("分析による発見", finding), ("仮説のアンサー", answer), ("とるべき事業戦略", strategy)],
+        blank, page_num=page_num)
 ```
 
 ```python
@@ -2869,52 +2894,69 @@ def add_pest_slide(prs, title, sub_message, pest, blank, source=None, page_num=N
 
 
 def add_invention_zone_slide(prs, zone, blank, page_num=None):
-    """v16 Template A：発明アイディアスライド（Hot/Remote/Battle 各1枚）。暗赤背景＋半透明パネル。
-    zone: {zoneName, headline, subtitle, claimDraft, problem, inventionPoint,
-           priorArt:{number,applicant,claim}, logicSteps:[5]}"""
-    V = _V16
+    """発明アイディア（白背景版）。タイトルは他スライドと整合（add_title_shape・明朝）。
+    zone: {zoneName,headline,subtitle,claimDraft,problem,inventionPoint,priorArt:{number,applicant,claim},logicSteps:[5]}"""
     s = prs.slides.add_slide(blank)
-    _cv_bg_image(s, overlay=72)
-    # タイトル
-    _cv_txt(s, zone.get("headline", ""), 0.64, 0.30, 11.9, 0.6, 28.5, V["white"], _CV_GO, True)
-    _cv_rect(s, 0.64, 1.02, 2.55, 0.05, V["red"], 100)
+    s.background.fill.solid(); s.background.fill.fore_color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+    if CV_BG_LIGHT_PATH and os.path.exists(CV_BG_LIGHT_PATH):
+        s.shapes.add_picture(CV_BG_LIGHT_PATH, Inches(0), Inches(0), Inches(13.333), Inches(7.5))
+    add_title_shape(s, zone.get("headline", ""), label=str(zone.get("zoneName", "")).upper())
     if zone.get("subtitle"):
-        _cv_txt(s, zone["subtitle"], 0.66, 1.16, 12.0, 0.3, 14.0, V["muted"], _CV_GO)
-    # 想定独立請求項案（主役・大）
-    _cv_panel(s, 0.64, 1.56, 12.03, 2.26, fill="080A0D", op=62, line=V["red"], lop=100, lw=1.3)
-    _cv_txt(s, "想定独立請求項案", 0.92, 1.77, 4.0, 0.3, 13.2, V["red"], _CV_GO, True)
-    _cv_txt(s, zone.get("claimDraft", ""), 0.92, 2.12, 11.45, 1.55, 18.5, V["white"], _CV_GO, True, anchor=MSO_ANCHOR.TOP)
+        st = s.shapes.add_textbox(Inches(MARGIN_L), Inches(1.26), Inches(CONTENT_W), Inches(0.3))
+        set_text(st.text_frame.paragraphs[0], zone["subtitle"], Pt(12.5), MEDIUM_GRAY)
+    # 想定独立請求項案（白パネル＋赤枠・主役）
+    cp = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.9), Inches(1.62), Inches(11.73), Inches(2.02))
+    cp.fill.solid(); cp.fill.fore_color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+    cp.line.color.rgb = ACCENT; cp.line.width = Pt(1.4)
+    set_text(s.shapes.add_textbox(Inches(1.14), Inches(1.78), Inches(4.0), Inches(0.3)).text_frame.paragraphs[0],
+             "想定独立請求項案", Pt(13), ACCENT, bold=True)
+    cb = s.shapes.add_textbox(Inches(1.14), Inches(2.12), Inches(11.25), Inches(1.42))
+    cbt = cb.text_frame; cbt.word_wrap = True; cbt.auto_size = MSO_AUTO_SIZE.NONE
+    add_rich_runs(cbt.paragraphs[0], zone.get("claimDraft", ""), base_size=Pt(15.5), base_color=INK, bold_color=INK, line_spacing=1.32)
     # 発明のポイント（左）
-    _cv_panel(s, 0.64, 4.00, 5.83, 1.92, fill=V["panel2"], op=54, line=V["line2"], lop=88)
-    _cv_txt(s, "発明のポイント", 0.86, 4.16, 2.6, 0.26, 13.2, V["red"], _CV_GO, True)
-    _cv_txt(s, "解決課題", 0.86, 4.52, 1.2, 0.2, 11.0, V["muted2"], _CV_GO, True)
-    _cv_txt(s, zone.get("problem", ""), 0.86, 4.75, 5.4, 0.5, 13.2, V["white"], _CV_GO, True)
-    _cv_txt(s, "発明の要点", 0.86, 5.27, 1.4, 0.2, 11.0, V["muted2"], _CV_GO, True)
-    _cv_txt(s, zone.get("inventionPoint", ""), 0.86, 5.50, 5.4, 0.38, 13.2, V["white"], _CV_GO, True)
-    # 先行技術として（右）
+    ix, iy, iw, ih = 0.9, 3.80, 5.35, 2.46
+    p1 = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(ix), Inches(iy), Inches(iw), Inches(ih))
+    p1.fill.solid(); p1.fill.fore_color.rgb = PALE_GRAY; p1.line.fill.background()
+    set_text(s.shapes.add_textbox(Inches(ix + 0.2), Inches(iy + 0.14), Inches(3.0), Inches(0.28)).text_frame.paragraphs[0],
+             "発明のポイント", Pt(12.5), ACCENT, bold=True)
+    set_text(s.shapes.add_textbox(Inches(ix + 0.2), Inches(iy + 0.5), Inches(1.4), Inches(0.22)).text_frame.paragraphs[0],
+             "解決課題", Pt(10.5), MEDIUM_GRAY, bold=True)
+    a = s.shapes.add_textbox(Inches(ix + 0.2), Inches(iy + 0.74), Inches(iw - 0.4), Inches(0.7)); a.text_frame.word_wrap = True
+    add_rich_runs(a.text_frame.paragraphs[0], zone.get("problem", ""), base_size=Pt(11.5), base_color=DARK_GRAY, bold_color=INK, line_spacing=1.3)
+    set_text(s.shapes.add_textbox(Inches(ix + 0.2), Inches(iy + 1.46), Inches(1.4), Inches(0.22)).text_frame.paragraphs[0],
+             "発明の要点", Pt(10.5), MEDIUM_GRAY, bold=True)
+    b = s.shapes.add_textbox(Inches(ix + 0.2), Inches(iy + 1.70), Inches(iw - 0.4), Inches(ih - 1.8)); b.text_frame.word_wrap = True
+    add_rich_runs(b.text_frame.paragraphs[0], zone.get("inventionPoint", ""), base_size=Pt(11.5), base_color=DARK_GRAY, bold_color=INK, line_spacing=1.3)
+    # 先行技術（右・クレーム1全文）
     pa = zone.get("priorArt", {})
-    _cv_panel(s, 6.84, 4.00, 5.83, 1.92, fill=V["panel2"], op=54, line=V["line2"], lop=88)
-    _cv_txt(s, "先行技術として", 7.06, 4.16, 2.6, 0.26, 13.2, V["red"], _CV_GO, True)
-    _cv_txt(s, "番号", 7.06, 4.54, 0.6, 0.22, 11.0, V["muted2"], _CV_GO, True)
-    _cv_txt(s, pa.get("number", ""), 7.66, 4.54, 4.9, 0.22, 12.3, V["white"], _CV_GO, True)
-    _cv_txt(s, "出願人", 7.06, 4.86, 0.8, 0.22, 11.0, V["muted2"], _CV_GO, True)
-    _cv_txt(s, pa.get("applicant", ""), 7.86, 4.86, 4.7, 0.22, 12.3, V["white"], _CV_GO, True)
-    _cv_txt(s, "クレーム", 7.06, 5.18, 0.9, 0.22, 11.0, V["muted2"], _CV_GO, True)
-    _cv_txt(s, pa.get("claim", ""), 7.06, 5.44, 5.4, 0.42, 11.3, V["muted"], _CV_GO)
-    # 請求項作成ロジック（下・5ステップ）
-    _cv_panel(s, 0.64, 6.22, 12.03, 0.88, fill="090B0E", op=58, line=V["line2"], lop=88)
-    _cv_txt(s, "請求項作成ロジック", 0.86, 6.40, 2.7, 0.24, 13.0, V["red"], _CV_GO, True)
-    steps = zone.get("logicSteps", []); n = max(1, len(steps))
-    startX = 0.64 + 2.66; stepW = (12.03 - 3.0) / n
-    for i, st in enumerate(steps):
+    rx, rw = 6.42, 6.21
+    p2 = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(rx), Inches(iy), Inches(rw), Inches(ih))
+    p2.fill.solid(); p2.fill.fore_color.rgb = PALE_GRAY; p2.line.fill.background()
+    set_text(s.shapes.add_textbox(Inches(rx + 0.2), Inches(iy + 0.14), Inches(3.0), Inches(0.28)).text_frame.paragraphs[0],
+             "先行技術", Pt(12.5), ACCENT, bold=True)
+    hd = s.shapes.add_textbox(Inches(rx + 0.2), Inches(iy + 0.5), Inches(rw - 0.4), Inches(0.28))
+    hp = hd.text_frame.paragraphs[0]
+    r1 = hp.add_run(); r1.text = pa.get("number", "") + "  "; r1.font.size = Pt(12); r1.font.bold = True; r1.font.color.rgb = INK; _apply_font(r1)
+    r2 = hp.add_run(); r2.text = "／ " + pa.get("applicant", ""); r2.font.size = Pt(11); r2.font.color.rgb = MEDIUM_GRAY; _apply_font(r2)
+    set_text(s.shapes.add_textbox(Inches(rx + 0.2), Inches(iy + 0.82), Inches(2.0), Inches(0.22)).text_frame.paragraphs[0],
+             "クレーム1（全文）", Pt(10.5), MEDIUM_GRAY, bold=True)
+    cl = s.shapes.add_textbox(Inches(rx + 0.2), Inches(iy + 1.06), Inches(rw - 0.4), Inches(ih - 1.18))
+    clt = cl.text_frame; clt.word_wrap = True; clt.auto_size = MSO_AUTO_SIZE.NONE
+    add_rich_runs(clt.paragraphs[0], pa.get("claim", ""), base_size=Pt(8.6), base_color=DARK_GRAY, bold_color=INK, line_spacing=1.22)
+    # 請求項作成ロジック（下・薄ストリップ）
+    lp = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.9), Inches(6.40), Inches(11.73), Inches(0.58))
+    lp.fill.solid(); lp.fill.fore_color.rgb = PALE_GRAY; lp.line.fill.background()
+    set_text(s.shapes.add_textbox(Inches(1.08), Inches(6.55), Inches(2.6), Inches(0.24)).text_frame.paragraphs[0],
+             "請求項作成ロジック", Pt(11.5), ACCENT, bold=True)
+    steps = zone.get("logicSteps", []); n = max(1, len(steps)); startX = 0.9 + 2.66; stepW = (11.73 - 2.9) / n
+    for i, stp in enumerate(steps):
         sx = startX + i * stepW
-        _cv_txt(s, str(i + 1), sx, 6.40, 0.25, 0.2, 10.5, V["red"], _CV_GO, True)
-        _cv_txt(s, st, sx + 0.26, 6.37, stepW - 0.36, 0.52, 11.2, V["muted"], _CV_GO, True)
+        set_text(s.shapes.add_textbox(Inches(sx), Inches(6.55), Inches(0.25), Inches(0.2)).text_frame.paragraphs[0], str(i + 1), Pt(10.5), ACCENT, bold=True)
+        t2 = s.shapes.add_textbox(Inches(sx + 0.24), Inches(6.52), Inches(stepW - 0.32), Inches(0.36)); t2.text_frame.word_wrap = True
+        set_text(t2.text_frame.paragraphs[0], stp, Pt(10.5), DARK_GRAY, bold=True, line_spacing=1.0)
     if page_num is not None:
-        _cv_txt(s, str(page_num), 12.7, 7.06, 0.5, 0.24, 9, V["muted2"], _CV_GO, False, PP_ALIGN.RIGHT)
+        set_text(s.shapes.add_textbox(Inches(12.45), Inches(7.02), Inches(0.55), Inches(0.25)).text_frame.paragraphs[0], str(page_num), Pt(10), MEDIUM_GRAY)
     return s
-
-
 def add_patent_deepdive_slide(prs, title, sub_message, patent, blank, source=None, page_num=None):
     """クラスタ分析の延長：注目クラスタにある1件を『紹介』する頁。特許の分解はしない。
     左＝書誌＋解決課題、右＝このクラスタでの位置づけ・着目理由／この特許の面白さ。
