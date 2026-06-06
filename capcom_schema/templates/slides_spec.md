@@ -2900,17 +2900,22 @@ def add_invention_zone_slide(prs, zone, blank, page_num=None):
     s.background.fill.solid(); s.background.fill.fore_color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
     if CV_BG_LIGHT_PATH and os.path.exists(CV_BG_LIGHT_PATH):
         s.shapes.add_picture(CV_BG_LIGHT_PATH, Inches(0), Inches(0), Inches(13.333), Inches(7.5))
-    add_title_shape(s, zone.get("headline", ""), label=str(zone.get("zoneName", "")).upper())
+    sub_y = add_title_shape(s, zone.get("headline", ""), label=str(zone.get("zoneName", "")).upper())
     if zone.get("subtitle"):
-        st = s.shapes.add_textbox(Inches(MARGIN_L), Inches(1.26), Inches(CONTENT_W), Inches(0.3))
+        st = s.shapes.add_textbox(Inches(MARGIN_L), Inches(sub_y + 0.02), Inches(CONTENT_W), Inches(0.32))
         set_text(st.text_frame.paragraphs[0], zone["subtitle"], Pt(12.5), MEDIUM_GRAY)
+        ctop = sub_y + 0.42
+    else:
+        ctop = sub_y + 0.12
+    ctop = max(ctop, 1.56)
+    cph = 3.72 - ctop
     # 想定独立請求項案（白パネル＋赤枠・主役）
-    cp = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.9), Inches(1.62), Inches(11.73), Inches(2.02))
+    cp = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.9), Inches(ctop), Inches(11.73), Inches(cph))
     cp.fill.solid(); cp.fill.fore_color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
     cp.line.color.rgb = ACCENT; cp.line.width = Pt(1.4)
-    set_text(s.shapes.add_textbox(Inches(1.14), Inches(1.78), Inches(4.0), Inches(0.3)).text_frame.paragraphs[0],
+    set_text(s.shapes.add_textbox(Inches(1.14), Inches(ctop + 0.16), Inches(4.0), Inches(0.3)).text_frame.paragraphs[0],
              "想定独立請求項案", Pt(13), ACCENT, bold=True)
-    cb = s.shapes.add_textbox(Inches(1.14), Inches(2.12), Inches(11.25), Inches(1.42))
+    cb = s.shapes.add_textbox(Inches(1.14), Inches(ctop + 0.50), Inches(11.25), Inches(cph - 0.6))
     cbt = cb.text_frame; cbt.word_wrap = True; cbt.auto_size = MSO_AUTO_SIZE.NONE
     add_rich_runs(cbt.paragraphs[0], zone.get("claimDraft", ""), base_size=Pt(15.5), base_color=INK, bold_color=INK, line_spacing=1.32)
     # 発明のポイント（左）
