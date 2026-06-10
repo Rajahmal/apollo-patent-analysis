@@ -1,4 +1,14 @@
-# PPTスライド仕様書 v6.14 — マスター刷新（テーマ色/フォント/署名ヘアライン）
+# PPTスライド仕様書 v6.15 — auto-TOC（目次自動解決）＋クレーム作成術・新モデル強化
+
+> **v6.15 追加（再現性の仕組み化）**
+> - **auto-TOC**：目次のページ番号は手書き禁止。`items` の `page:"auto"` 指定＋ビルド末尾の `finalize_toc()` で、
+>   章扉の直後に現れた番号付き頁を各章の開始ページとして自動流し込み（`_TOC_PAGE_SLOTS`／`_SECTION_FIRST_PAGE`／
+>   `_record_section_page`）。スライドを何枚挿入しても目次は二度とズレない。
+> - **クレーム作成術・新モデル4原則**：①クレーム1に括弧書き任意言語（「（任意に〜）」等）を置かない（不明確）
+>   ②測定系パラメータは範囲条件でなく**単一定義の測定条件**で規定（例: 0.5mol/L・2kA/m²時の電流効率≦5%＝侵害試験が一義）
+>   ③**結果文言（〜を低減する等）を排し定量限定**へ（例: 供給アルカリの50質量%以上を再生分で賄う）
+>   ④**由来限定は測定可能なフィンガープリントに変換**（例: 『CO2固定由来』→放射性炭素≧50pMC、バイオ灰由来→P₂O₅ 0.5〜5%）。
+
 
 > **v6.14 追加（マスタースライド強化）**：テンプレートのマスター/テーマを `tune_master` で刷新。
 > ①テーマ色＝クリムゾン・エディトリアル（accent1=C51212/グレー階調）→ ネイティブチャート既定色が自動ブランド化
@@ -742,6 +752,9 @@ def add_bottom_bar_and_footer(slide, page_num=None):
     タイトルスライド・セクションスライド・クロージングスライドでは呼ばない。
     """
     add_chapter_marker(slide)
+    if page_num is not None and _PENDING_SECTION[0] is not None:
+        _SECTION_FIRST_PAGE[_PENDING_SECTION[0]] = page_num
+        _PENDING_SECTION[0] = None
     if page_num is None:
         return
     # 右下ページ番号のみ（10pt MEDIUM_GRAY・右寄せ）
@@ -1269,6 +1282,7 @@ def add_section_slide(prs, section_num, title, blank, subtitle=None, en=None):
     右の赤い建築オブジェ。画像なし・全てベクター。CURRENT_CHAPTER を更新する。"""
     global CURRENT_CHAPTER
     CURRENT_CHAPTER = section_num
+    _PENDING_SECTION[0] = section_num
     s = prs.slides.add_slide(blank)
     _hide_master(s)
 
@@ -2347,6 +2361,26 @@ def add_timeline_slide(prs, title, sub_message, events, blank,
 #### 目次スライド
 
 ```python
+# --- auto-TOC（目次ページ番号の自動解決。手書き禁止＝挿入でズレない） ---
+_TOC_PAGE_SLOTS = {}       # section_num -> 目次のページ番号 paragraph
+_SECTION_FIRST_PAGE = {}   # section_num -> 本文開始ページ
+_PENDING_SECTION = [None]  # 直近の章扉（次の番号付き頁が開始ページ）
+
+def _record_section_page(page_num):
+    """add_bottom_bar_and_footer を使わない頁（statement/invention等）の章開始ページ記録用。"""
+    if page_num is not None and _PENDING_SECTION[0] is not None:
+        _SECTION_FIRST_PAGE[_PENDING_SECTION[0]] = page_num
+        _PENDING_SECTION[0] = None
+
+
+def finalize_toc():
+    """ビルド末尾（保存直前）に呼ぶ。章扉の次に現れた番号付き頁を各章の開始ページとして目次へ流し込む。"""
+    for num, para in _TOC_PAGE_SLOTS.items():
+        pg = _SECTION_FIRST_PAGE.get(num)
+        set_text(para, f"P.{pg}" if pg else "—", Pt(14), MEDIUM_GRAY)
+        para.alignment = PP_ALIGN.RIGHT
+
+
 def add_toc_slide(prs, title, items, blank, page_num=None):
     """目次スライド — ゼブラストライプ目次
 
@@ -2385,7 +2419,11 @@ def add_toc_slide(prs, title, items, blank, page_num=None):
         txPage = slide.shapes.add_textbox(Inches(table_x + 8.5), Inches(y + 0.05),
                                            Inches(1.5), Inches(row_h - 0.1))
         p = txPage.text_frame.paragraphs[0]
-        set_text(p, item.get("page", ""), Pt(14), MEDIUM_GRAY)
+        pg = item.get("page", "")
+        if pg in (None, "", "auto"):
+            _TOC_PAGE_SLOTS[item.get("num", i + 1)] = p
+            pg = "…"
+        set_text(p, pg, Pt(14), MEDIUM_GRAY)
         p.alignment = PP_ALIGN.RIGHT
 
     add_bottom_bar_and_footer(slide, page_num)
@@ -2866,6 +2904,7 @@ def add_statement_slide(prs, title, sub, rows, blank, page_num=None, emphasize_l
         vt = vb.text_frame; vt.word_wrap = True; vt.auto_size = MSO_AUTO_SIZE.NONE
         vt.vertical_anchor = MSO_ANCHOR.MIDDLE
         add_rich_runs(vt.paragraphs[0], val, base_size=Pt(15), base_color=RGBColor(0x14, 0x14, 0x16), bold_color=ACCENT, line_spacing=1.28)
+    _record_section_page(page_num)
     if page_num is not None:
         set_text(s.shapes.add_textbox(Inches(12.45), Inches(7.02), Inches(0.55), Inches(0.25)).text_frame.paragraphs[0],
                  str(page_num), Pt(10), _cvC(_V16["muted2"]))
@@ -3032,6 +3071,7 @@ def add_invention_zone_slide(prs, zone, blank, page_num=None):
         set_text(s.shapes.add_textbox(Inches(sx), Inches(6.55), Inches(0.25), Inches(0.2)).text_frame.paragraphs[0], str(i + 1), Pt(10.5), ACCENT, bold=True)
         t2 = s.shapes.add_textbox(Inches(sx + 0.24), Inches(6.52), Inches(stepW - 0.32), Inches(0.36)); t2.text_frame.word_wrap = True
         set_text(t2.text_frame.paragraphs[0], stp, Pt(10.5), DARK_GRAY, bold=True, line_spacing=1.0)
+    _record_section_page(page_num)
     if page_num is not None:
         set_text(s.shapes.add_textbox(Inches(12.45), Inches(7.02), Inches(0.55), Inches(0.25)).text_frame.paragraphs[0], str(page_num), Pt(10), MEDIUM_GRAY)
     return s
