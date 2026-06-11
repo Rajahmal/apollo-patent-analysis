@@ -1,5 +1,10 @@
-# PPTスライド仕様書 v6.15 — auto-TOC（目次自動解決）＋クレーム作成術・新モデル強化
+# PPTスライド仕様書 v6.16 — 目次の編集組版（ヘアライン罫・クリムゾン番号・word_wrap明示）
 
+> **v6.16 追加（目次の地力）**
+> - `add_toc_slide` を編集組版へ刷新：ゼブラ廃止→行下ヘアライン罫、番号=クリムゾン明朝2桁（`ACCENT`/`heading=True`）、タイトル=左揃え墨。
+> - **textboxは `word_wrap=True` を明示**（python-pptx 既定の `wrap="none"`+`spAutoFit` は描画系によって中央寄りに見えるため）。
+> - 出所のDB名は実データの真値（例: CYBERPATENT）を使う。プレースホルダ「J-PlatPat 等」を残さない。
+>
 > **v6.15 追加（再現性の仕組み化）**
 > - **auto-TOC**：目次のページ番号は手書き禁止。`items` の `page:"auto"` 指定＋ビルド末尾の `finalize_toc()` で、
 >   章扉の直後に現れた番号付き頁を各章の開始ページとして自動流し込み（`_TOC_PAGE_SLOTS`／`_SECTION_FIRST_PAGE`／
@@ -2382,7 +2387,8 @@ def finalize_toc():
 
 
 def add_toc_slide(prs, title, items, blank, page_num=None):
-    """目次スライド — ゼブラストライプ目次
+    """目次スライド — ヘアライン罫の編集組版目次
+    （ゼブラ廃止。番号=クリムゾン明朝2桁、タイトル=左揃え墨、行下に細罫）
 
     items = [{"num":1, "title":"セクション名", "page":"P5"}, ...]
     """
@@ -2393,31 +2399,39 @@ def add_toc_slide(prs, title, items, blank, page_num=None):
     table_x, table_y, table_w = 1.5, sub_y + 0.1, 10.3
     row_h = min(0.5, (6.4 - table_y) / max(n, 1))
 
+    rule = RGBColor(0xDD, 0xDE, 0xDF)
     for i, item in enumerate(items):
         y = table_y + i * row_h
-        if i % 2 == 0:
-            bg = slide.shapes.add_shape(
-                MSO_SHAPE.RECTANGLE, Inches(table_x), Inches(y),
-                Inches(table_w), Inches(row_h)
-            )
-            bg.fill.solid()
-            bg.fill.fore_color.rgb = LIGHT_GRAY
-            bg.line.fill.background()
+        # 行下の細罫
+        ln = slide.shapes.add_shape(
+            MSO_SHAPE.RECTANGLE, Inches(table_x), Inches(y + row_h - 0.012),
+            Inches(table_w), Inches(0.012)
+        )
+        ln.fill.solid()
+        ln.fill.fore_color.rgb = rule
+        ln.line.fill.background()
 
-        # 番号
-        txNum = slide.shapes.add_textbox(Inches(table_x + 0.2), Inches(y + 0.05),
-                                          Inches(0.8), Inches(row_h - 0.1))
-        set_text(txNum.text_frame.paragraphs[0],
-                 f"{item.get('num', i+1)}.", Pt(14), NAVY, bold=True)
+        # 番号（クリムゾン・明朝・2桁）
+        txNum = slide.shapes.add_textbox(Inches(table_x + 0.1), Inches(y + 0.05),
+                                          Inches(0.9), Inches(row_h - 0.1))
+        txNum.text_frame.word_wrap = True   # wrap=none による中央寄り描画を防ぐ
+        pn = txNum.text_frame.paragraphs[0]
+        set_text(pn, f"{int(item.get('num', i+1)):02d}", Pt(15), ACCENT,
+                 bold=True, heading=True)
+        pn.alignment = PP_ALIGN.LEFT
 
-        # セクション名
+        # セクション名（左揃え・墨）
         txTitle = slide.shapes.add_textbox(Inches(table_x + 1.2), Inches(y + 0.05),
                                             Inches(7.0), Inches(row_h - 0.1))
-        set_text(txTitle.text_frame.paragraphs[0], item["title"], Pt(14), DARK_GRAY, bold=True)
+        txTitle.text_frame.word_wrap = True
+        pt = txTitle.text_frame.paragraphs[0]
+        set_text(pt, item["title"], Pt(14), INK, bold=True)
+        pt.alignment = PP_ALIGN.LEFT
 
         # ページ番号
         txPage = slide.shapes.add_textbox(Inches(table_x + 8.5), Inches(y + 0.05),
                                            Inches(1.5), Inches(row_h - 0.1))
+        txPage.text_frame.word_wrap = True
         p = txPage.text_frame.paragraphs[0]
         pg = item.get("page", "")
         if pg in (None, "", "auto"):

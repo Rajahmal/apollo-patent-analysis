@@ -13,14 +13,14 @@ command: /pptx
 - 「PPTXを作って」「スライドにして」「プレゼン資料を作成」「`/pptx`」等を検知した時点で、
   **データ調査や自前のpython記述を始める前に**本スキルを発動し、`slides_spec.md` を読み込んでから着手する。
 - スキルを使わず素のpython-pptxで自己流に組むことを禁止する（品質・配色・用語ルールが崩れるため）。
-- 別系統の仕様（旧v5.0 NAVY配色など）が混在していても、**本スキルが指す `slides_spec.md`（現行 v6.15）を正**とする。
+- 別系統の仕様（旧v5.0 NAVY配色など）が混在していても、**本スキルが指す `slides_spec.md`（現行 v6.16）を正**とする。
 
 ## ⚠️ 優先順位ルール（最重要・厳守）
 
 **スライド生成時は `capcom_schema/templates/slides_spec.md` を最優先で参照すること。**
 
 - 本SKILL.mdの記述（関数名・スライド比率・ポンチ絵パターン数・カラー定義など）と `slides_spec.md` の記述が**矛盾する場合、必ず `slides_spec.md` を採用する**
-- 本SKILL.mdは概要・起動条件・運用ルールを示すメタ文書であり、実装仕様の正は `slides_spec.md`（現行 v6.15、スライドタイプ15種＋考察系＋発見の道筋＋統計予測）にある
+- 本SKILL.mdは概要・起動条件・運用ルールを示すメタ文書であり、実装仕様の正は `slides_spec.md`（現行 v6.16、スライドタイプ15種＋考察系＋発見の道筋＋統計予測）にある
 - 関数名の例: SKILL.md が `add_process_flow()` / `add_matrix_2x2()` などを記載していても、実際は `slides_spec.md` の `add_process_slide()` / `add_matrix_slide()` 等を使用すること
 
 ### v6.1 仕様の要点（実運用フィードバック反映・詳細は slides_spec.md 冒頭）
