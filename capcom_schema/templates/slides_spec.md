@@ -1,5 +1,10 @@
-# PPTスライド仕様書 v6.19 — 背景画像の章別割り当てを明文化（同梱2枚の使い分け固定）
+# PPTスライド仕様書 v6.20 — クレーム作成術を運用手順化（WORKFLOWに5ステップ＋4原則チェック）
 
+> **v6.20 追加（クレーム作成術の運用手順化）**
+> - 多段階クレーム作成術（5ステップ＋新モデル強化4原則）を WORKFLOW.md §3.5 に独立手順として明示。
+>   教義(SKILL.md)・実例(example_content_co2.py の3ゾーン claimDraft/inventionPoint/logicSteps/priorArt)・手順(WORKFLOW)が揃い再現可能に。
+> - 出荷前チェック=4原則（①括弧任意語なし②単一測定条件③結果文言→定量④由来→測定可能フィンガープリント）。モノクレーム中心・製造方法は3案中1件まで。
+>
 > **v6.19 追加（背景画像の使い分けを固定）**
 > - 同梱の `dark_red_background.png`（暗赤）＝総括の黒地3点`add_statement_slide`／締め`add_closing_slide`、
 >   `light_red_background.png`（白赤）＝発明アイディア`add_invention_zone_slide`、と章別割り当てをSKILL/WORKFLOWに明文化。
