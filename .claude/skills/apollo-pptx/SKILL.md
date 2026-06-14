@@ -13,7 +13,7 @@ command: /pptx
 - 「PPTXを作って」「スライドにして」「プレゼン資料を作成」「`/pptx`」等を検知した時点で、
   **データ調査や自前のpython記述を始める前に**本スキルを発動し、`slides_spec.md` を読み込んでから着手する。
 - スキルを使わず素のpython-pptxで自己流に組むことを禁止する（品質・配色・用語ルールが崩れるため）。
-- 別系統の仕様（旧v5.0 NAVY配色など）が混在していても、**本スキルが指す `slides_spec.md`（現行 v6.17）を正**とする。
+- 別系統の仕様（旧v5.0 NAVY配色など）が混在していても、**本スキルが指す `slides_spec.md`（現行 v6.18）を正**とする。
 
 ## 🛑 受け入れ条件ゲート（v6.17・絶対遵守・「完成」を宣言する前に全項目を満たすこと）
 
@@ -84,12 +84,38 @@ command: /pptx
 | 12 | 付録２：**発明アイディア**（Hot/Remote/Battle） | 2+ | `add_invention_zone_slide`・多段階クレーム |
 | — | クロージング（`add_closing_slide`・v16 Template B） | 1 | 「だから何をするか」で締める |
 
+## ⚙️ 制作はテンプレートエンジンを“使って”組む（v6.18・最重要・再現性の本体）
+
+> **別セッションで品質が崩れる最大の原因は「仕様書の散文からエンジンを毎回再実装する」こと**だった。
+> これを止め、**同梱の決定論的エンジン・テンプレート・実例**を読み込んで組む方式に一本化する。
+
+### 同梱資産（`.claude/skills/apollo-pptx/assets/`）— これを使う。自前再実装は禁止
+| ファイル | 役割 |
+|---------|------|
+| `apollo_pptx_engine.py` | **全テンプレート実装**（章扉=Crimson Vector／ピラミッド=custGeom連続／発明ゾーン／ライフサイクル回帰／予測／意味マップ等、33種のスライド関数＋配色／フォント／禁則）。**毎回 exec で読み込み、中身は書き換えない** |
+| `apollo_template.pptx` | マスター刷新済みテンプレ（テーマ色＝クリムゾン階調・見出し明朝・天辺ヘアライン） |
+| `build_report.py` | 汎用ビルドハーネス（engine＋content＋template＋アセットを配線→finalize_toc→影除去→audit→保存） |
+| `example_content_co2.py` | **完成形106枚の中身（実例＝正準サンプル）**。各章で何を・どの関数で・どの数値根拠で仕込むかの見本。新テーマはこれを雛形に複製して埋める |
+| `WORKFLOW.md` | **作業手順書**（作業順序・整地分析のタイミング・各章スライドの仕込みレシピ・ビルド/QAコマンド）。着手前に必読 |
+| `dark_red_background.png` / `light_red_background.png` / `MaterialSymbolsOutlined.*` | 背景・アイコン |
+
+### 制作手順（要点・詳細は `assets/WORKFLOW.md`）
+1. `assets/WORKFLOW.md` と `assets/example_content_co2.py` を通読（手順と完成形の中身を把握）。
+2. セッションの `data/patents.csv`・`snapshots/`・`voyager/context.json`・`prompts/`（最低3件）を確認。
+3. `example_content_co2.py` を `<session>/reports/content.py` にコピーし、**当該テーマのデータで全章を書き換える**
+   （**CSVは content.py 冒頭で1回だけ読み**、年次系列・出願人活動度補正・クラスタ別/トピック別系列・UMAP座標を作って使い回す）。
+4. ビルド: `python <skill>/assets/build_report.py <session_dir>`（content.py・出力先は自動解決）。
+5. PDF化して目視QA → **受け入れ条件ゲート G1〜G7 を1項目ずつ自己点検**してから「完成」と報告。
+
+> `slides_spec.md` は**実装仕様の正典（関数の挙動定義）**として参照する。ただし**新規にコードを書き起こす必要はない**——
+> 同梱 `apollo_pptx_engine.py` がその実装そのものであり、`build_report.py` がそれを読み込む。散文からの再写経はバラつきの元なので行わない。
+
 ## ⚠️ 優先順位ルール（最重要・厳守）
 
 **スライド生成時は `capcom_schema/templates/slides_spec.md` を最優先で参照すること。**
 
 - 本SKILL.mdの記述（関数名・スライド比率・ポンチ絵パターン数・カラー定義など）と `slides_spec.md` の記述が**矛盾する場合、必ず `slides_spec.md` を採用する**
-- 本SKILL.mdは概要・起動条件・運用ルールを示すメタ文書であり、実装仕様の正は `slides_spec.md`（現行 v6.17、スライドタイプ15種＋考察系＋発見の道筋＋統計予測）にある
+- 本SKILL.mdは概要・起動条件・運用ルールを示すメタ文書であり、実装仕様の正は `slides_spec.md`（現行 v6.18、スライドタイプ15種＋考察系＋発見の道筋＋統計予測）にある
 - 関数名の例: SKILL.md が `add_process_flow()` / `add_matrix_2x2()` などを記載していても、実際は `slides_spec.md` の `add_process_slide()` / `add_matrix_slide()` 等を使用すること
 
 ### v6.1 仕様の要点（実運用フィードバック反映・詳細は slides_spec.md 冒頭）
