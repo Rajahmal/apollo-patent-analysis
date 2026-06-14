@@ -50,3 +50,6 @@ test_data/
 # OS固有
 Thumbs.db
 capcom_work/
+
+# 展開した CAPCOM セッション (一時作業用)
+session_work/
