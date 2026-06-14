@@ -13,7 +13,7 @@ command: /pptx
 - 「PPTXを作って」「スライドにして」「プレゼン資料を作成」「`/pptx`」等を検知した時点で、
   **データ調査や自前のpython記述を始める前に**本スキルを発動し、`slides_spec.md` を読み込んでから着手する。
 - スキルを使わず素のpython-pptxで自己流に組むことを禁止する（品質・配色・用語ルールが崩れるため）。
-- 別系統の仕様（旧v5.0 NAVY配色など）が混在していても、**本スキルが指す `slides_spec.md`（現行 v6.18）を正**とする。
+- 別系統の仕様（旧v5.0 NAVY配色など）が混在していても、**本スキルが指す `slides_spec.md`（現行 v6.19）を正**とする。
 
 ## 🛑 受け入れ条件ゲート（v6.17・絶対遵守・「完成」を宣言する前に全項目を満たすこと）
 
@@ -99,6 +99,20 @@ command: /pptx
 | `WORKFLOW.md` | **作業手順書**（作業順序・整地分析のタイミング・各章スライドの仕込みレシピ・ビルド/QAコマンド）。着手前に必読 |
 | `dark_red_background.png` / `light_red_background.png` / `MaterialSymbolsOutlined.*` | 背景・アイコン |
 
+### 背景画像の章別割り当て（v6.19・どの章で何を使うか＝固定ルール）
+> 背景は**2枚同梱済み**。`build_report.py` が `CV_BG_PATH`(暗赤)／`CV_BG_LIGHT_PATH`(白赤) に自動注入する。
+> どのスライドがどちらを使うかは**エンジン側で固定**（content.py 側で背景を指定する必要はない）。
+
+| 背景画像 | 使うスライド関数 | 章・用途 | 文字色 |
+|---------|----------------|---------|-------|
+| **`dark_red_background.png`（暗赤）** | `add_statement_slide` → `add_closing_slide` | **章10 総括の黒地3点ステートメント**／**締めのクロージング** | 白＋赤ラベル |
+| **`light_red_background.png`（白赤）** | `add_invention_zone_slide` | **章12 付録2 発明アイディア（Hot/Remote/Battle）3枚** | 黒＋赤アクセント |
+| 画像不使用＝**Crimson Vector（純ベクター）** | `add_title_slide`／`add_section_slide`／`add_pyramid_slide` | **表紙・全章扉・総括の結論ピラミッド** | 白（暗背景） |
+
+- 暗背景頁は `_hide_master(slide)` でマスターの天辺ヘアラインを非表示にする（黒地に赤線が透けない）。エンジンが自動処理。
+- 背景画像が見つからない場合（パス未注入）でもエンジンは**暗色ベタ／白ベタで代替**して破綻しない。ただし**正規の見た目には2枚の同梱画像が必須**。
+- 章扉・表紙・結論ピラミッドは**画像でなくベクター**で描く（拡大しても劣化せず、台形積み重ね等の崩れも起きない）。
+
 ### 制作手順（要点・詳細は `assets/WORKFLOW.md`）
 1. `assets/WORKFLOW.md` と `assets/example_content_co2.py` を通読（手順と完成形の中身を把握）。
 2. セッションの `data/patents.csv`・`snapshots/`・`voyager/context.json`・`prompts/`（最低3件）を確認。
@@ -115,7 +129,7 @@ command: /pptx
 **スライド生成時は `capcom_schema/templates/slides_spec.md` を最優先で参照すること。**
 
 - 本SKILL.mdの記述（関数名・スライド比率・ポンチ絵パターン数・カラー定義など）と `slides_spec.md` の記述が**矛盾する場合、必ず `slides_spec.md` を採用する**
-- 本SKILL.mdは概要・起動条件・運用ルールを示すメタ文書であり、実装仕様の正は `slides_spec.md`（現行 v6.18、スライドタイプ15種＋考察系＋発見の道筋＋統計予測）にある
+- 本SKILL.mdは概要・起動条件・運用ルールを示すメタ文書であり、実装仕様の正は `slides_spec.md`（現行 v6.19、スライドタイプ15種＋考察系＋発見の道筋＋統計予測）にある
 - 関数名の例: SKILL.md が `add_process_flow()` / `add_matrix_2x2()` などを記載していても、実際は `slides_spec.md` の `add_process_slide()` / `add_matrix_slide()` 等を使用すること
 
 ### v6.1 仕様の要点（実運用フィードバック反映・詳細は slides_spec.md 冒頭）

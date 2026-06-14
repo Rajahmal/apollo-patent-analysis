@@ -1,5 +1,10 @@
-# PPTスライド仕様書 v6.18 — テンプレートエンジン同梱（決定論ビルドで別セッション再現）
+# PPTスライド仕様書 v6.19 — 背景画像の章別割り当てを明文化（同梱2枚の使い分け固定）
 
+> **v6.19 追加（背景画像の使い分けを固定）**
+> - 同梱の `dark_red_background.png`（暗赤）＝総括の黒地3点`add_statement_slide`／締め`add_closing_slide`、
+>   `light_red_background.png`（白赤）＝発明アイディア`add_invention_zone_slide`、と章別割り当てをSKILL/WORKFLOWに明文化。
+> - 表紙・章扉・結論ピラミッドは**画像でなくCrimson Vector（純ベクター）**。背景はエンジンが自動注入し content 側指定は不要。
+>
 > **v6.18 追加（再現の実体化・エンジン同梱）**
 > - 仕様書の散文からの再実装をやめ、`apollo-pptx/assets/` に **決定論エンジン `apollo_pptx_engine.py`（本仕様の実装そのもの・33関数）**、
 >   **テンプレ `apollo_template.pptx`**、**汎用ビルド `build_report.py`**、**完成形の実例 `example_content_co2.py`**、**手順書 `WORKFLOW.md`** を同梱。

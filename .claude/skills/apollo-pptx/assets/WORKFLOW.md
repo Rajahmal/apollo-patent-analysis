@@ -11,8 +11,17 @@
 | `apollo_template.pptx` | マスター刷新済みテンプレ（テーマ色=クリムゾン階調／見出し明朝／天辺ヘアライン） |
 | `build_report.py` | 汎用ビルドハーネス。engine＋content＋template＋アセットを配線し finalize_toc→影除去→audit→保存 |
 | `example_content_co2.py` | **完成形106枚の中身（実例）**。各章で何を・どの関数で・どの数値根拠で仕込むかの**正準サンプル**。新テーマはこれを雛形に複製して埋める |
-| `dark_red_background.png` / `light_red_background.png` | 章扉・クロージング・発明ゾーンの背景 |
+| `dark_red_background.png` / `light_red_background.png` | 背景画像（割り当ては下表・固定） |
 | `MaterialSymbolsOutlined.ttf` / `.codepoints` | KPI・PESTのアイコン |
+
+### 背景画像の章別割り当て（固定・content側で指定不要）
+`build_report.py` が `CV_BG_PATH`(暗赤)／`CV_BG_LIGHT_PATH`(白赤) に自動注入。どのスライドがどちらを使うかはエンジンで固定:
+
+| 背景 | スライド関数 | 章・用途 | 文字色 |
+|------|------------|---------|-------|
+| `dark_red_background.png`（暗赤） | `add_statement_slide`→`add_closing_slide` | 章10 総括の黒地3点／締めクロージング | 白＋赤ラベル |
+| `light_red_background.png`（白赤） | `add_invention_zone_slide` | 章12 付録2 発明アイディア3枚 | 黒＋赤アクセント |
+| 画像なし＝Crimson Vector（純ベクター） | `add_title_slide`／`add_section_slide`／`add_pyramid_slide` | 表紙・全章扉・結論ピラミッド | 白（暗背景） |
 
 ## 1. 作業順序（厳守）
 1. SKILL.md の **受け入れ条件ゲート G1〜G7** と **標準デッキ・ブループリント** を確認（完成基準を頭に入れる）。
