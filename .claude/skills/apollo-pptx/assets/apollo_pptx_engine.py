@@ -2417,8 +2417,12 @@ def add_insight_slide(prs, title, sub_message, layers, blank,
         body = slide.shapes.add_textbox(Inches(MARGIN_L + 0.18), Inches(y + body_off),
                                         Inches(body_w), Inches(body_h))
         tf = body.text_frame; tf.word_wrap = True; tf.auto_size = MSO_AUTO_SIZE.NONE
-        body_txt = _clip_rich(lyr.get("body", ""), body_cap,
-                              where=f"考察『{lyr.get('label', '')}』")
+        # 考察は深く書きたい場合を優先: 切り詰めず全文表示（容量超過は注意喚起のみ・重なり許容）
+        body_txt = lyr.get("body", "")
+        _vis = len(re.sub(r'\*\*', '', body_txt))
+        if _vis > body_cap:
+            print(f"[INFO] 考察『{lyr.get('label', '')}』は目安{body_cap}字超（{_vis}字）"
+                  f"。全文表示（次ブロックと重なる場合あり）— 必要なら2スライドに分割")
         add_rich_runs(tf.paragraphs[0], body_txt, base_size=Pt(13),
                       base_color=DARK_GRAY, bold_color=INK, line_spacing=line_sp)
         y += block_h + gap
