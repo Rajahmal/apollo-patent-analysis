@@ -674,8 +674,53 @@ def add_highlight_circle(slide, x, y, w=0.5, h=0.5, color=None):
 
 WORDMARK = ""   # 表紙のプラットフォーム・ワードマーク。空文字なら一切描かない（ブランド名を頁に出さない）
 
+def render_cover_scatter(points, emerging_cids, out_path, w=2666, h=1500):
+    """表紙バックドロップ（B案 データ・アズ・アート）。
+
+    実 UMAP 点群を近黒地に極淡描画し、新興クラスタだけクリムゾンで発光させる。
+    左 1/3 は暗スクリムで沈め、表紙テキストの可読性を確保する（点群は右 2/3 に寄せる）。
+    points: [(x, y, cid)] / emerging_cids: 赤発光させるクラスタID集合。
+    """
+    from PIL import ImageFilter
+    if not points:
+        return None
+    BG = (9, 10, 13); FAINT = (122, 126, 134); ACC = (199, 0, 30)
+    emerging = set(str(c) for c in (emerging_cids or []))
+    SS = 2; cw, ch = w * SS, h * SS
+    base = Image.new("RGBA", (cw, ch), BG + (255,))
+    glow = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
+    dots = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
+    gdr = ImageDraw.Draw(glow); ddr = ImageDraw.Draw(dots)
+    xs = [p[0] for p in points]; ys = [p[1] for p in points]
+    xmin, xmax = min(xs), max(xs); ymin, ymax = min(ys), max(ys)
+    dx = (xmax - xmin) or 1.0; dy = (ymax - ymin) or 1.0
+    L, R, T, B = 0.34, 0.99, 0.07, 0.96      # 右2/3へ配置（左は文字領域）
+    def tx(x): return (L + (R - L) * ((x - xmin) / dx)) * cw
+    def ty(y): return (T + (B - T) * (1 - (y - ymin) / dy)) * ch
+    for x, y, cid in sorted(points, key=lambda p: 1 if str(p[2]) in emerging else 0):
+        cx, cy = tx(x), ty(y)
+        if str(cid) in emerging:
+            for rr, aa in [(40 * SS, 30), (26 * SS, 55), (15 * SS, 110)]:
+                gdr.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], fill=ACC + (aa,))
+            r = 8 * SS; ddr.ellipse([cx - r, cy - r, cx + r, cy + r], fill=ACC + (240,))
+        else:
+            r = 5 * SS; ddr.ellipse([cx - r, cy - r, cx + r, cy + r], fill=FAINT + (90,))
+    glow = glow.filter(ImageFilter.GaussianBlur(SS * 10))
+    base = Image.alpha_composite(base, glow)
+    base = Image.alpha_composite(base, dots)
+    grad = Image.new("L", (256, 1), 0)        # 左スクリム（黒グラデ）
+    for i in range(256):
+        grad.putpixel((i, 0), int(235 * max(0.0, 1 - i / 150.0)) if i < 150 else 0)
+    grad = grad.resize((cw, ch))
+    scrim = Image.new("RGBA", (cw, ch), (6, 7, 10, 255))
+    base = Image.composite(scrim, base, grad)
+    base.convert("RGB").resize((w, h), Image.LANCZOS).save(out_path)
+    return out_path
+
+
 def add_title_slide(prs, title, subtitle, date, blank,
-                    kicker="TECHNOLOGY INTELLIGENCE REPORT"):
+                    kicker="TECHNOLOGY INTELLIGENCE REPORT",
+                    umap_points=None, emerging_cids=None):
     """表紙 — 黒背景の大胆なエディトリアル演出（デッキの第一印象を決める頁）
 
     構成（柱0「インパクト演出」）:
@@ -692,8 +737,20 @@ def add_title_slide(prs, title, subtitle, date, blank,
     bg.solid()
     bg.fore_color.rgb = DARK_SECTION
 
-    # 巨大ゴースト・ワードマーク（背面・低コントラストで奥行きを作る）。WORDMARK が空なら描かない
-    if WORDMARK:
+    # B案 データ・アズ・アート: 実 UMAP 点群バックドロップを全面に敷く（あれば）
+    cover_bg = None
+    if umap_points:
+        try:
+            cover_bg = os.path.join(tempfile.gettempdir(), "apollo_cover_bg.png")
+            render_cover_scatter(umap_points, emerging_cids, cover_bg)
+        except Exception as _e:
+            print("[WARN] 表紙バックドロップ生成に失敗（平黒地で続行）:", _e); cover_bg = None
+    if cover_bg and os.path.exists(cover_bg):
+        slide.shapes.add_picture(cover_bg, Inches(0), Inches(0), Inches(13.333), Inches(7.5))
+
+    # 巨大ゴースト・ワードマーク（背面・低コントラストで奥行きを作る）。
+    # データ点群バックドロップがある時は質感が二重になるため描かない
+    if WORDMARK and not cover_bg:
         ghost = slide.shapes.add_textbox(Inches(0.7), Inches(4.55), Inches(13.0), Inches(2.6))
         gtf = ghost.text_frame
         gtf.word_wrap = False
