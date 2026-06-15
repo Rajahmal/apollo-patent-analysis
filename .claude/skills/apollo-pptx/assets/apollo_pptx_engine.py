@@ -463,11 +463,23 @@ def add_source_label(slide, source_text, x=0.5, y=6.98, w=11.3):
     set_text(p, f"（出所）{source_text}", Pt(9), MEDIUM_GRAY)
 
 
+def _set_bullet(paragraph, char="•", color="111111", indent_in=0.20):  # （task2）中点は黒
+    """（task3）段落をネイティブ箇条書きにする（■マーカー廃止）。
+    buClr→buFont→buChar の順で pPr に付与し、ぶら下げインデントを設定。"""
+    pPr = paragraph._p.get_or_add_pPr()
+    emu = str(int(indent_in * 914400))
+    pPr.set('marL', emu); pPr.set('indent', '-' + emu)
+    buClr = etree.SubElement(pPr, f'{{{A_NS}}}buClr')
+    srgb = etree.SubElement(buClr, f'{{{A_NS}}}srgbClr'); srgb.set('val', color)
+    buFont = etree.SubElement(pPr, f'{{{A_NS}}}buFont'); buFont.set('typeface', 'Arial')
+    buChar = etree.SubElement(pPr, f'{{{A_NS}}}buChar'); buChar.set('char', char)
+
+
 def add_annotation_block(slide, bullets, x, y, w, h, font_size=14,
                          has_border=False, bg_color=None):
     """テキスト注釈ブロック（チャート横の分析テキスト）
 
-    ■マーカー付き箇条書きでチャートを補足する。
+    （task3）■マーカーは廃止し、ネイティブ箇条書き（クリムゾンの・）でチャートを補足する。
     各bullet: 最大2行、14pt。全体で3-5項目を推奨。
     """
     if bg_color or has_border:
@@ -496,11 +508,6 @@ def add_annotation_block(slide, bullets, x, y, w, h, font_size=14,
     for i, item in enumerate(bullets):
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
         p.space_after = Pt(6)
-        marker = p.add_run()
-        marker.text = "■ "
-        marker.font.size = Pt(font_size)
-        marker.font.color.rgb = NAVY
-        _apply_font(marker)
         parts = re.split(r'(\*\*.*?\*\*)', item)
         for part in parts:
             if not part:
@@ -516,7 +523,8 @@ def add_annotation_block(slide, bullets, x, y, w, h, font_size=14,
             run.font.size = Pt(font_size)
             _apply_font(run)
         _apply_kinsoku(p)
-        p.line_spacing = 1.5
+        p.line_spacing = 1.4
+        _set_bullet(p, indent_in=0.22)  # （task3）ネイティブ箇条書き化
 
 
 def add_chart_label(slide, text, x, y, w=3.0, size=14, color=NAVY):
@@ -889,7 +897,7 @@ def add_section_slide(prs, section_num, title, blank, subtitle=None, en=None):
 
 def add_chart_text_slide(prs, title, sub_message, image_path, annotations, blank,
                          caption=None, chart_label=None, text_side="right",
-                         chart_ratio=0.68, source=None, page_num=None):
+                         chart_ratio=0.715, source=None, page_num=None):
     """チャート主体 + テキスト注釈 — 主力スライドタイプ
 
     Args:
@@ -905,7 +913,7 @@ def add_chart_text_slide(prs, title, sub_message, image_path, annotations, blank
 
     content_w = CONTENT_W + 0.5  # （改良4）右余白も使ってチャート域を拡張
     content_x = MARGIN_L
-    gap = 0.25
+    gap = 0.04  # （task2→さらに寄せる）注釈をグラフへ密着。チャートは chart_ratio 0.715 で約5%拡大
     chart_w = content_w * chart_ratio - gap / 2
     text_w = content_w * (1 - chart_ratio) - gap / 2
     remaining_h = 6.7 - content_y  # （改良4）下端まで使い切り縦も拡大
@@ -943,6 +951,7 @@ def add_chart_text_slide(prs, title, sub_message, image_path, annotations, blank
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -1131,6 +1140,7 @@ def add_kpi_slide(prs, title, sub_message, kpis, blank,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -1205,6 +1215,7 @@ def add_cards_slide(prs, title, sub_message, cards, blank,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -1293,6 +1304,7 @@ def add_process_slide(prs, title, sub_message, steps, blank,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -1367,6 +1379,7 @@ def add_stepup_slide(prs, title, sub_message, phases, blank,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -1428,6 +1441,7 @@ def add_compare_slide(prs, title, sub_message, left_title, left_items,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -1499,6 +1513,7 @@ def add_table_slide(prs, title, sub_message, headers, rows, blank,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -1559,6 +1574,7 @@ def add_progress_bar_slide(prs, title, sub_message, items, blank,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -1652,6 +1668,7 @@ def add_triangle_slide(prs, title, sub_message, elements, blank,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -1709,6 +1726,7 @@ def add_pyramid_slide(prs, title, sub_message, levels, blank,
         _cv_txt_two(slide, l1, l2, x, y, w, s1, s2, c1="FFFFFF", c2="FBE3E6")
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -1783,6 +1801,7 @@ def add_hypothesis_slide(prs, title, sub_message, hypotheses, blank,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -1863,6 +1882,7 @@ def add_timeline_slide(prs, title, sub_message, events, blank,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -1941,6 +1961,7 @@ def add_toc_slide(prs, title, items, blank, page_num=None):
         set_text(p, pg, Pt(14), MEDIUM_GRAY)
         p.alignment = PP_ALIGN.RIGHT
 
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -2002,6 +2023,7 @@ def add_dual_panel_slide(prs, title, sub_message,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -2028,6 +2050,7 @@ def add_narrative_slide(prs, title, sub_message, paragraphs, blank,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -2088,6 +2111,7 @@ def add_chapter_intro_slide(prs, eyebrow, title, bullets, blank,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -2115,6 +2139,7 @@ def add_image_slide(prs, title, sub_message, image_path, blank,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -2175,6 +2200,7 @@ def add_recommendation_slide(prs, title, sub_message, recommendations, blank,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -2251,6 +2277,7 @@ def add_matrix_slide(prs, title, sub_message, quadrants, blank,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -2296,6 +2323,7 @@ def add_insight_slide(prs, title, sub_message, layers, blank,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -2607,6 +2635,7 @@ def add_forecast_slide(prs, title, sub_message, series, blank,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -2727,6 +2756,7 @@ def add_lifecycle_slide(prs, title, sub_message, series, blank,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -2847,6 +2877,7 @@ def add_lifecycle_curve_slide(prs, title, sub_message, series, blank,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -2900,6 +2931,7 @@ def add_query_logic_slide(prs, title, sub_message, rows, intent, blank,
         set_text(ft.text_frame.paragraphs[0], "最終論理式： " + final_logic, Pt(10.5), INK, bold=True)
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -2918,14 +2950,16 @@ def add_statement_slide(prs, title, sub, rows, blank, page_num=None, emphasize_l
         pan = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.76), Inches(y), Inches(11.82), Inches(1.42))
         try: pan.adjustments[0] = 0.05
         except Exception: pass
-        pan.fill.solid(); pan.fill.fore_color.rgb = RGBColor(0xFF, 0xFF, 0xFF); _set_fill_alpha(pan, 60)
+        pan.fill.solid(); pan.fill.fore_color.rgb = RGBColor(0xFF, 0xFF, 0xFF); _set_fill_alpha(pan, 80)  # （task4）透明度20%＝不透明度80%へ
         if emphasize_last and i == 2:
             pan.line.color.rgb = ACCENT; pan.line.width = Pt(1.6)
         else:
             pan.line.color.rgb = RGBColor(0xFF, 0xFF, 0xFF); pan.line.width = Pt(0.75); _cv_line_alpha(pan, 55)
-        set_text(s.shapes.add_textbox(Inches(1.04), Inches(y + 0.22), Inches(2.4), Inches(0.34)).text_frame.paragraphs[0],
-                 lab, Pt(15.5), ACCENT, bold=True)
-        vb = s.shapes.add_textbox(Inches(3.52), Inches(y + 0.18), Inches(8.78), Inches(1.06))
+        lbx = s.shapes.add_textbox(Inches(1.04), Inches(y), Inches(2.95), Inches(1.42))  # （task4）パネルのy中心へ
+        lbx.text_frame.word_wrap = True; lbx.text_frame.auto_size = MSO_AUTO_SIZE.NONE
+        lbx.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+        set_text(lbx.text_frame.paragraphs[0], lab, Pt(19.5), ACCENT, bold=True)  # 見出しワードを拡大＋縦中央
+        vb = s.shapes.add_textbox(Inches(4.12), Inches(y + 0.18), Inches(8.18), Inches(1.06))
         vt = vb.text_frame; vt.word_wrap = True; vt.auto_size = MSO_AUTO_SIZE.NONE
         vt.vertical_anchor = MSO_ANCHOR.MIDDLE
         add_rich_runs(vt.paragraphs[0], val, base_size=Pt(15), base_color=RGBColor(0x14, 0x14, 0x16), bold_color=ACCENT, line_spacing=1.28)
@@ -2985,6 +3019,7 @@ def add_pest_slide(prs, title, sub_message, pest, blank, source=None, page_num=N
             para.space_after = Pt(4)
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -3105,6 +3140,7 @@ def add_patent_deepdive_slide(prs, title, sub_message, patent, blank, source=Non
         add_rich_runs(bdt.paragraphs[0], patent.get(key, ""), base_size=Pt(12), base_color=DARK_GRAY, bold_color=INK, line_spacing=1.45)
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -3140,10 +3176,32 @@ def add_semantic_map_slide(prs, title, sub_message, points, callouts, blank,
 
     KCOL = {"emerging": ACCENT, "mature": RGBColor(0x4D, 0x50, 0x55),
             "growth": RGBColor(0x90, 0x94, 0x99)}
+
+    # （C）anchor/box="auto"（または未指定）対応: cidの重心から自動算出。
+    # 正規化は _render_umap_scatter と一致させる（padx7%/pady10%・y反転）→ ピルが正しく重心を指す。
+    def _auto_anchor(cid):
+        xs = [p[0] for p in points]; ys = [p[1] for p in points]
+        x0, x1 = min(xs), max(xs); y0, y1 = min(ys), max(ys)
+        px = (x1 - x0) * 0.07 or 1.0; py = (y1 - y0) * 0.10 or 1.0
+        x0 -= px; x1 += px; y0 -= py; y1 += py
+        cc = [(p[0], p[1]) for p in points if p[2] == cid]
+        if not cc:
+            return (0.5, 0.5)
+        ox = sum(p[0] for p in cc) / len(cc); oy = sum(p[1] for p in cc) / len(cc)
+        return ((ox - x0) / (x1 - x0), 1 - (oy - y0) / (y1 - y0))
+
     for c in callouts:
         kc = KCOL.get(c.get("kind"), ACCENT)
-        ax = mx + c["anchor"][0] * mw; ay = my + c["anchor"][1] * mh
-        bx = mx + c["box"][0] * mw;    by = my + c["box"][1] * mh
+        an = c.get("anchor")
+        if an in (None, "auto"):
+            an = _auto_anchor(c["cid"])
+        bxy = c.get("box")
+        if bxy in (None, "auto"):
+            ox, oy = an
+            bxy = (min(max(ox + (0.13 if ox < 0.5 else -0.13), 0.04), 0.92),
+                   min(max(oy + (0.13 if oy < 0.5 else -0.13), 0.06), 0.92))
+        ax = mx + an[0] * mw; ay = my + an[1] * mh
+        bx = mx + bxy[0] * mw; by = my + bxy[1] * mh
         # 重心マーカー（小さな塗り点）
         mk = slide.shapes.add_shape(MSO_SHAPE.OVAL, Inches(ax - 0.05), Inches(ay - 0.05),
                                     Inches(0.10), Inches(0.10))
@@ -3183,6 +3241,7 @@ def add_semantic_map_slide(prs, title, sub_message, points, callouts, blank,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -3274,6 +3333,7 @@ def add_method_flow_slide(prs, title, sub_message, steps, blank,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -3320,6 +3380,7 @@ def add_patent_micro_slide(prs, title, sub_message, patents, blank,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -3371,6 +3432,7 @@ def add_applicant_profile_slide(prs, title, sub_message, profiles, blank,
 
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -3430,12 +3492,37 @@ def add_bar_chart_slide(prs, title, sub_message, categories, series, blank,
         chart.plots[0].gap_width = 70
     except Exception:
         pass
+    # （D2）データインク最大化: 値ラベル直付け・目盛線除去・冗長な数値軸を非表示
+    try:
+        from pptx.enum.chart import XL_LABEL_POSITION
+        plot = chart.plots[0]
+        plot.has_data_labels = True
+        dl = plot.data_labels
+        dl.number_format = '0'; dl.number_format_is_linked = False
+        dl.font.size = Pt(11); dl.font.bold = True
+        try: dl.font.name = JA_FONT
+        except Exception: pass
+        dl.position = XL_LABEL_POSITION.INSIDE_END if stacked else XL_LABEL_POSITION.OUTSIDE_END
+    except Exception:
+        pass
+    try:
+        va = chart.value_axis
+        va.has_major_gridlines = False
+        if not stacked:
+            va.visible = False  # 値ラベルがあるので数値軸は省く（単系列のみ）
+    except Exception:
+        pass
+    try:
+        chart.category_axis.has_major_gridlines = False
+    except Exception:
+        pass
     if has_text:
         tx = MARGIN_L + chart_w + gap
         add_annotation_block(slide, annotations, tx, content_y,
                              (CONTENT_W + 0.5) * (1 - chart_ratio) - gap/2, chart_h - 0.2, font_size=13)
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -3464,6 +3551,7 @@ def add_evidence_slide(prs, title, sub_message, items, blank,
         y += h + gap
     if source:
         add_source_label(slide, source)
+    add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク
     add_bottom_bar_and_footer(slide, page_num)
     return slide
 
@@ -3616,6 +3704,14 @@ def add_corner_marks(slide,
     from pptx.util import Inches, Pt, Emu
     from pptx.dml.color import RGBColor
 
+    # （A）冪等化: 既に付与済みなら二重描画しない（deco廃止後はエンジンが自動付与するため）
+    try:
+        for _sh in slide.shapes:
+            if getattr(_sh, "name", "") == "apollo_cmark":
+                return
+    except Exception:
+        pass
+
     COLOR = RGBColor(0xC5, 0x12, 0x12)
     LW = Pt(0.75)
 
@@ -3624,6 +3720,8 @@ def add_corner_marks(slide,
             Inches(x0), Inches(y0), Inches(x0 + length), Inches(y0))
         c.line.color.rgb = COLOR
         c.line.width = LW
+        try: c.name = "apollo_cmark"
+        except Exception: pass
 
     def _vline(x0, y0, length):
         c = slide.shapes.add_connector(1,
