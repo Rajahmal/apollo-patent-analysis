@@ -463,7 +463,7 @@ def add_source_label(slide, source_text, x=0.5, y=6.98, w=11.3):
     set_text(p, f"（出所）{source_text}", Pt(9), MEDIUM_GRAY)
 
 
-def _set_bullet(paragraph, char="•", color="C51212", indent_in=0.20):
+def _set_bullet(paragraph, char="•", color="111111", indent_in=0.20):  # （task2）中点は黒
     """（task3）段落をネイティブ箇条書きにする（■マーカー廃止）。
     buClr→buFont→buChar の順で pPr に付与し、ぶら下げインデントを設定。"""
     pPr = paragraph._p.get_or_add_pPr()
@@ -913,7 +913,7 @@ def add_chart_text_slide(prs, title, sub_message, image_path, annotations, blank
 
     content_w = CONTENT_W + 0.5  # （改良4）右余白も使ってチャート域を拡張
     content_x = MARGIN_L
-    gap = 0.10  # （task2）注釈をグラフへ寄せる（隙間を縮小）。チャートは chart_ratio 0.715 で約5%拡大
+    gap = 0.04  # （task2→さらに寄せる）注釈をグラフへ密着。チャートは chart_ratio 0.715 で約5%拡大
     chart_w = content_w * chart_ratio - gap / 2
     text_w = content_w * (1 - chart_ratio) - gap / 2
     remaining_h = 6.7 - content_y  # （改良4）下端まで使い切り縦も拡大
@@ -2955,8 +2955,10 @@ def add_statement_slide(prs, title, sub, rows, blank, page_num=None, emphasize_l
             pan.line.color.rgb = ACCENT; pan.line.width = Pt(1.6)
         else:
             pan.line.color.rgb = RGBColor(0xFF, 0xFF, 0xFF); pan.line.width = Pt(0.75); _cv_line_alpha(pan, 55)
-        set_text(s.shapes.add_textbox(Inches(1.04), Inches(y + 0.18), Inches(2.95), Inches(0.5)).text_frame.paragraphs[0],
-                 lab, Pt(19.5), ACCENT, bold=True)  # （task4）見出しワードを2段階拡大
+        lbx = s.shapes.add_textbox(Inches(1.04), Inches(y), Inches(2.95), Inches(1.42))  # （task4）パネルのy中心へ
+        lbx.text_frame.word_wrap = True; lbx.text_frame.auto_size = MSO_AUTO_SIZE.NONE
+        lbx.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+        set_text(lbx.text_frame.paragraphs[0], lab, Pt(19.5), ACCENT, bold=True)  # 見出しワードを拡大＋縦中央
         vb = s.shapes.add_textbox(Inches(4.12), Inches(y + 0.18), Inches(8.18), Inches(1.06))
         vt = vb.text_frame; vt.word_wrap = True; vt.auto_size = MSO_AUTO_SIZE.NONE
         vt.vertical_anchor = MSO_ANCHOR.MIDDLE
