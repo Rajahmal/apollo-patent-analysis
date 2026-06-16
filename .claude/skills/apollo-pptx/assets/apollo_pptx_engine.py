@@ -674,50 +674,6 @@ def add_highlight_circle(slide, x, y, w=0.5, h=0.5, color=None):
 
 WORDMARK = ""   # 表紙のプラットフォーム・ワードマーク。空文字なら一切描かない（ブランド名を頁に出さない）
 
-def render_cover_scatter(points, emerging_cids, out_path, w=2666, h=1500):
-    """表紙バックドロップ（B案 データ・アズ・アート）。
-
-    実 UMAP 点群を近黒地に極淡描画し、新興クラスタだけクリムゾンで発光させる。
-    左 1/3 は暗スクリムで沈め、表紙テキストの可読性を確保する（点群は右 2/3 に寄せる）。
-    points: [(x, y, cid)] / emerging_cids: 赤発光させるクラスタID集合。
-    """
-    from PIL import ImageFilter
-    if not points:
-        return None
-    BG = (9, 10, 13); FAINT = (122, 126, 134); ACC = (199, 0, 30)
-    emerging = set(str(c) for c in (emerging_cids or []))
-    SS = 2; cw, ch = w * SS, h * SS
-    base = Image.new("RGBA", (cw, ch), BG + (255,))
-    glow = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
-    dots = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
-    gdr = ImageDraw.Draw(glow); ddr = ImageDraw.Draw(dots)
-    xs = [p[0] for p in points]; ys = [p[1] for p in points]
-    xmin, xmax = min(xs), max(xs); ymin, ymax = min(ys), max(ys)
-    dx = (xmax - xmin) or 1.0; dy = (ymax - ymin) or 1.0
-    L, R, T, B = 0.34, 0.99, 0.07, 0.96      # 右2/3へ配置（左は文字領域）
-    def tx(x): return (L + (R - L) * ((x - xmin) / dx)) * cw
-    def ty(y): return (T + (B - T) * (1 - (y - ymin) / dy)) * ch
-    for x, y, cid in sorted(points, key=lambda p: 1 if str(p[2]) in emerging else 0):
-        cx, cy = tx(x), ty(y)
-        if str(cid) in emerging:
-            for rr, aa in [(40 * SS, 30), (26 * SS, 55), (15 * SS, 110)]:
-                gdr.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], fill=ACC + (aa,))
-            r = 8 * SS; ddr.ellipse([cx - r, cy - r, cx + r, cy + r], fill=ACC + (240,))
-        else:
-            r = 5 * SS; ddr.ellipse([cx - r, cy - r, cx + r, cy + r], fill=FAINT + (90,))
-    glow = glow.filter(ImageFilter.GaussianBlur(SS * 10))
-    base = Image.alpha_composite(base, glow)
-    base = Image.alpha_composite(base, dots)
-    grad = Image.new("L", (256, 1), 0)        # 左スクリム（黒グラデ）
-    for i in range(256):
-        grad.putpixel((i, 0), int(235 * max(0.0, 1 - i / 150.0)) if i < 150 else 0)
-    grad = grad.resize((cw, ch))
-    scrim = Image.new("RGBA", (cw, ch), (6, 7, 10, 255))
-    base = Image.composite(scrim, base, grad)
-    base.convert("RGB").resize((w, h), Image.LANCZOS).save(out_path)
-    return out_path
-
-
 def add_title_slide(prs, title, subtitle, date, blank,
                     kicker="TECHNOLOGY INTELLIGENCE REPORT",
                     umap_points=None, emerging_cids=None):
@@ -737,97 +693,31 @@ def add_title_slide(prs, title, subtitle, date, blank,
     bg.solid()
     bg.fore_color.rgb = DARK_SECTION
 
-    # B案 データ・アズ・アート: 実 UMAP 点群バックドロップを全面に敷く（あれば）
-    cover_bg = None
-    if umap_points:
-        try:
-            cover_bg = os.path.join(tempfile.gettempdir(), "apollo_cover_bg.png")
-            render_cover_scatter(umap_points, emerging_cids, cover_bg)
-        except Exception as _e:
-            print("[WARN] 表紙バックドロップ生成に失敗（平黒地で続行）:", _e); cover_bg = None
-    if cover_bg and os.path.exists(cover_bg):
-        slide.shapes.add_picture(cover_bg, Inches(0), Inches(0), Inches(13.333), Inches(7.5))
+    # 章扉と同じ Crimson Vector の建築ステージを背景に（全頁で視覚言語を統一）
+    _cv_base_stage(slide, red=True)
+    # 左端の極細クリムゾン・ストリップ（アンカー）
+    _cv_rect(slide, 0, 0, 0.12, 7.5, _CV["crimson"], 100)
 
-    # 巨大ゴースト・ワードマーク（背面・低コントラストで奥行きを作る）。
-    # データ点群バックドロップがある時は質感が二重になるため描かない
-    if WORDMARK and not cover_bg:
-        ghost = slide.shapes.add_textbox(Inches(0.7), Inches(4.55), Inches(13.0), Inches(2.6))
-        gtf = ghost.text_frame
-        gtf.word_wrap = False
-        gtf.auto_size = MSO_AUTO_SIZE.NONE
-        grun = gtf.paragraphs[0].add_run()
-        grun.text = WORDMARK
-        grun.font.size = Pt(150)
-        grun.font.bold = True
-        grun.font.color.rgb = RGBColor(0x1B, 0x1B, 0x1F)  # 黒よりわずかに明るい墨
-        _apply_font(grun, heading=True)
-        _track(grun, 400)
 
-    # 左端フル丈クリムゾン・ストリップ
-    strip = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(0.30), Inches(7.5))
-    strip.fill.solid()
-    strip.fill.fore_color.rgb = ACCENT
-    strip.line.fill.background()
-
-    # キッカー（赤・字間広め・全大文字）
-    kick = slide.shapes.add_textbox(Inches(1.15), Inches(0.95), Inches(11), Inches(0.4))
-    kick.text_frame.word_wrap = True
-    kick.text_frame.auto_size = MSO_AUTO_SIZE.NONE
-    krun = kick.text_frame.paragraphs[0].add_run()
-    krun.text = kicker
-    krun.font.size = Pt(12); krun.font.bold = True; krun.font.color.rgb = RED_ON_DARK
-    _apply_font(krun, heading=True); _track(krun, 280)
-
-    # ワードマーク（白・字間広め）。WORDMARK が空なら描かない
+    # キッカー（クリムゾン・全大文字・字間広め）
+    _cv_txt(slide, kicker, 0.95, 1.16, 8.2, 0.4, 13, _CV["crimson"], _CV_GO, True, PP_ALIGN.LEFT, 2.6)
+    # ワードマーク（任意・淡グレーで字間広め）
     if WORDMARK:
-        wm = slide.shapes.add_textbox(Inches(1.15), Inches(1.42), Inches(8), Inches(0.5))
-        wm.text_frame.word_wrap = True
-        wm.text_frame.auto_size = MSO_AUTO_SIZE.NONE
-        wrun = wm.text_frame.paragraphs[0].add_run()
-        wrun.text = WORDMARK
-        wrun.font.size = Pt(20); wrun.font.bold = True; wrun.font.color.rgb = WHITE
-        _apply_font(wrun, heading=True); _track(wrun, 600)
+        _cv_txt(slide, WORDMARK, 0.97, 1.62, 6.0, 0.4, 11.5, _CV["gray"], _CV_GO, True, PP_ALIGN.LEFT, 5.0)
 
-    # タイトル長で大判サイズを段階選択
+    # タイトル直上の太クリムゾン罫
+    _cv_rect(slide, 0.98, 2.60, 2.7, 0.085, _CV["crimson"], 100)
+    # 大判タイトル（アイボリー明朝・長さで段階＝1行に収め語の孤立を避ける）
     tlen = len(title)
-    if tlen <= 16:
-        t_size, t_y = Pt(48), 2.95
-    elif tlen <= 28:
-        t_size, t_y = Pt(40), 2.85
-    else:
-        t_size, t_y = Pt(34), 2.75
+    t_size = 46 if tlen <= 12 else (38 if tlen <= 16 else (31 if tlen <= 22 else 27))
+    t_y = 2.84 if tlen <= 22 else 3.02
+    _cv_txt(slide, title, 0.95, t_y, 8.05, 2.1, t_size, _CV["ivory"], _CV_MIN, True, PP_ALIGN.LEFT, 0.3)
+    # サブタイトル（淡グレー・ゴシック）
+    _cv_txt(slide, subtitle, 0.98, 5.42, 7.0, 1.0, 13.5, _CV["gray"], _CV_GO, False, PP_ALIGN.LEFT)
 
-    # 太いクリムゾン罫（タイトル直上）
-    line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(1.18), Inches(t_y - 0.40), Inches(3.4), Inches(0.11))
-    line.fill.solid()
-    line.fill.fore_color.rgb = ACCENT
-    line.line.fill.background()
-
-    # タイトル（大判 White Bold 明朝）
-    txBox = slide.shapes.add_textbox(Inches(1.15), Inches(t_y), Inches(11.4), Inches(2.4))
-    tf = txBox.text_frame
-    tf.word_wrap = True
-    tf.auto_size = MSO_AUTO_SIZE.NONE
-    set_text(tf.paragraphs[0], title, t_size, WHITE, bold=True, line_spacing=1.16, heading=True)
-
-    # サブタイトル（淡グレー）
-    txBox2 = slide.shapes.add_textbox(Inches(1.18), Inches(5.55), Inches(11), Inches(0.6))
-    txBox2.text_frame.word_wrap = True
-    txBox2.text_frame.auto_size = MSO_AUTO_SIZE.NONE
-    set_text(txBox2.text_frame.paragraphs[0], subtitle, Pt(15), RGBColor(0xC2, 0xC2, 0xC6), heading=True)
-
-    # 下部メタデータ帯（クリムゾン帯に白文字反転）
-    band = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(6.78), Inches(13.33), Inches(0.46))
-    band.fill.solid()
-    band.fill.fore_color.rgb = ACCENT
-    band.line.fill.background()
-    meta = slide.shapes.add_textbox(Inches(1.15), Inches(6.85), Inches(11.0), Inches(0.34))
-    meta.text_frame.word_wrap = True
-    meta.text_frame.auto_size = MSO_AUTO_SIZE.NONE
-    mrun = meta.text_frame.paragraphs[0].add_run()
-    mrun.text = date
-    mrun.font.size = Pt(11); mrun.font.bold = True; mrun.font.color.rgb = WHITE
-    _apply_font(mrun, heading=True); _track(mrun, 120)
+    # 下部メタ帯（クリムゾン帯に白反転）
+    _cv_rect(slide, 0, 6.84, 13.333, 0.42, _CV["crimson"], 100)
+    _cv_txt(slide, date, 0.97, 6.90, 9.5, 0.32, 11, _CV["white"], _CV_GO, True, PP_ALIGN.LEFT, 1.2)
     return slide
 
 

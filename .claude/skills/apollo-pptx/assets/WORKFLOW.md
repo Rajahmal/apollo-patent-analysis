@@ -115,17 +115,13 @@ _umap_points = [(float(r["umap_x"]), float(r["umap_y"]), r["cluster"]) for r in 
 - **チャート＋注釈 `add_chart_text_slide` は左上揃え＋注釈密着**: 図を中央でなく**左上に寄せ**、注釈は図の
   **実描画右端**に密着配置（縦長スナップショットでの左右の死に余白を解消）。content 側の指定変更は不要。
 
-## 3.8 v6.23 表紙＝データ・アズ・アート（実データを表紙の意匠にする）
-- 表紙 `add_title_slide` に **`umap_points` と `emerging_cids`** を渡すと、実 UMAP 点群を近黒地に
-  極淡描画したバックドロップを敷き、**新興クラスタだけクリムゾン発光**させる（`render_cover_scatter`）。
-  左 1/3 は暗スクリムで沈むのでタイトルは可読。未指定なら従来の平黒地にフォールバック。
-- content 側の書き方（章0）:
-  ```python
-  add_title_slide(prs, title, subtitle, date, blank, kicker="...",
-                  umap_points=_umap_points,          # 冒頭で作る (umap_x, umap_y, cluster)
-                  emerging_cids={"0"})               # 動態分析で「新興（高成長）」のクラスタID
-  ```
-  `emerging_cids` は MEGA/クラスタ動態で**新興（小×高成長）**と判定したクラスタIDを渡す（複数可）。
+## 3.8 v6.23 表紙＝Crimson Vector 建築ステージ（章扉と統一）
+- 表紙 `add_title_slide` は**章扉と同じ Crimson Vector の建築ステージ**（`_cv_base_stage`：黒の舞台＋右の
+  クリムゾン建築面＋スキャンライン）を背景に、左カラムへ**キッカー（赤）→太赤罫→大判アイボリー明朝タイトル
+  →サブタイトル→下部クリムゾン帯**を組む。**全頁で視覚言語が統一**される。
+- タイトルは文字数で級数自動調整（1行に収め語の孤立を防ぐ）。content 側の追加指定は不要。
+- ※旧 v6.23 初版の「実点群を表紙に敷くデータ・アズ・アート（散布ドット）」は**意匠性が弱く撤回**。
+  `add_title_slide(umap_points=, emerging_cids=)` の引数は後方互換で受けるが**現在は未使用**。
 
 ## 4. やってはいけないこと（再発防止）
 - **`deco(add_x(...))` でラップしない（v6.21〜）**→ `add_x(...)` を直接呼ぶ（二重括弧の閉じ忘れ防止＋自動マーク）。
