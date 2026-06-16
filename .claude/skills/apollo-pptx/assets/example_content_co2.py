@@ -36,10 +36,12 @@ except Exception as _e:
 # ============================================================
 add_title_slide(prs,
     "CO2 回収・固定化 技術の構造転換",
-    "「分離・回収」の成熟と「鉱物化・固定化」の台頭、そしてバイオマス CCU 空白領域の検証\n"
-    "新規事業領域の先行技術・特許網羅調査｜対象 1982–2024 出願 458 件（主要分析 2006–2024）",
-    "2026 年 6 月 2 日   ｜   PATENT INTELLIGENCE",
-    blank, kicker="PATENT LANDSCAPE REPORT")
+    "対象 1982–2024 ／ 出願 458 件（主要分析 2006–2024）",
+    "2026/06/02",
+    blank, kicker="PATENT LANDSCAPE REPORT",
+    # B案 データ・アズ・アート: 実UMAP点群を表紙バックドロップに敷き、新興クラスタを赤発光。
+    # emerging_cids には動態分析で「新興（高成長）」と判定したクラスタIDを渡す（本例は[0]）。
+    umap_points=_umap_points, emerging_cids={"0"})
 
 add_toc_slide(prs, "本レポートの構成", [
     {"num": 1, "title": "エグゼクティブサマリー — 5つの主要発見", "page": "auto"},

@@ -432,8 +432,14 @@ def audit_deck(prs):
     return issues
 
 
-def fit_image(slide, image_path, max_x, max_y, max_w, max_h):
-    """画像をアスペクト比保持で指定領域内に中央配置"""
+def fit_image(slide, image_path, max_x, max_y, max_w, max_h,
+              halign="center", valign="middle"):
+    """画像をアスペクト比保持で指定領域内に配置。
+
+    halign/valign で寄せ方向を指定（既定=中央）。返り値の Picture に実際の描画矩形
+    `_fit_rect=(left, top, use_w, use_h)` を付与するので、呼び出し側は実描画右端に
+    注釈を密着させる等の精密配置ができる（中央配置の死に余白を解消するため）。
+    """
     if not os.path.exists(image_path):
         return None
     img = Image.open(image_path)
@@ -443,14 +449,68 @@ def fit_image(slide, image_path, max_x, max_y, max_w, max_h):
         use_w, use_h = max_w, max_w * ratio
     else:
         use_h, use_w = max_h, max_h / ratio
-    left = max_x + (max_w - use_w) / 2
-    top = max_y + (max_h - use_h) / 2
+    if halign == "left":
+        left = max_x
+    elif halign == "right":
+        left = max_x + (max_w - use_w)
+    else:
+        left = max_x + (max_w - use_w) / 2
+    if valign == "top":
+        top = max_y
+    elif valign == "bottom":
+        top = max_y + (max_h - use_h)
+    else:
+        top = max_y + (max_h - use_h) / 2
     pic = slide.shapes.add_picture(
         image_path, Inches(left), Inches(top),
         width=Inches(use_w), height=Inches(use_h)
     )
     img.close()
+    pic._fit_rect = (left, top, use_w, use_h)
     return pic
+
+
+def _text_capacity(width_in, height_in, font_pt, line_spacing=1.4, fudge=1.05):
+    """固定フォントで指定ボックスに収まる概算文字数（全角基準・安全側）を返す。
+
+    方針: フォントは縮めない。ここで得た上限を使って content 側の文字数を制限する。
+    返り値: (1行あたり字数 cpl, 行数 lines, 許容総文字数)。
+    """
+    char_w = font_pt / 72.0                      # 全角1文字 ≈ フォントpt
+    line_h = font_pt * line_spacing / 72.0
+    cpl = max(6, int(width_in / char_w))
+    lines = max(1, int(height_in / line_h + 0.02))
+    return cpl, lines, int(cpl * lines * fudge)
+
+
+def _clip_rich(text, max_chars, where=""):
+    """**bold** 記法を保ったまま可視文字数で切り詰める。超過時は警告を出す。
+
+    フォントは縮小しない方針のため、箱に収まらない分はここで切り、content 側の
+    要約を促す（[WARN] を出力）。bold ペアは閉じたまま維持する。
+    """
+    if max_chars <= 0 or not text:
+        return text
+    parts = re.split(r'(\*\*.*?\*\*)', text)
+    if sum(len(p[2:-2] if (p.startswith('**') and p.endswith('**')) else p)
+           for p in parts if p) <= max_chars:
+        return text
+    out, used = [], 0
+    for part in parts:
+        if not part:
+            continue
+        is_bold = part.startswith('**') and part.endswith('**')
+        inner = part[2:-2] if is_bold else part
+        if used + len(inner) <= max_chars:
+            out.append(part); used += len(inner)
+        else:
+            remain = max_chars - used
+            if remain > 0:
+                cut = inner[:remain].rstrip() + "…"
+                out.append(f"**{cut}**" if is_bold else cut)
+            break
+    print(f"[WARN] 文字数上限({max_chars}字)超過のため切り詰め: {where} — content側で要約を推奨")
+    return "".join(out)
 
 
 def add_source_label(slide, source_text, x=0.5, y=6.98, w=11.3):
@@ -481,7 +541,28 @@ def add_annotation_block(slide, bullets, x, y, w, h, font_size=14,
 
     （task3）■マーカーは廃止し、ネイティブ箇条書き（クリムゾンの・）でチャートを補足する。
     各bullet: 最大2行、14pt。全体で3-5項目を推奨。
+    箱の高さから行数予算を見積もり、収まらない項目は切り詰め/省略する（フォントは縮めない）。
     """
+    # （A2）固定フォントのまま箱に収める: 行数予算で項目を取捨し、はみ出しを根絶
+    cpl, _, _ = _text_capacity(w - 0.24, h - 0.16, font_size)
+    line_h = font_size * 1.4 / 72.0
+    budget_lines = max(1, int((h - 0.16) / line_h))
+    fitted, used_lines = [], 0.0
+    for b in bullets:
+        vis = len(re.sub(r'\*\*', '', b))
+        need = max(1, -(-vis // cpl))          # 行数(ceil)
+        extra = 0.3 if fitted else 0.0          # 項目間 space_after(6pt) を約0.3行で加味
+        if used_lines + need + extra <= budget_lines:
+            fitted.append(b); used_lines += need + extra
+        else:
+            remain = int(budget_lines - used_lines - extra)
+            if remain >= 1:
+                fitted.append(_clip_rich(b, remain * cpl, where="チャート注釈"))
+            else:
+                print(f"[WARN] チャート注釈が多く{len(bullets) - len(fitted)}項目を省略 — 統合を推奨")
+            break
+    bullets = fitted
+
     if bg_color or has_border:
         box = slide.shapes.add_shape(
             MSO_SHAPE.RECTANGLE, Inches(x), Inches(y), Inches(w), Inches(h)
@@ -594,7 +675,8 @@ def add_highlight_circle(slide, x, y, w=0.5, h=0.5, color=None):
 WORDMARK = ""   # 表紙のプラットフォーム・ワードマーク。空文字なら一切描かない（ブランド名を頁に出さない）
 
 def add_title_slide(prs, title, subtitle, date, blank,
-                    kicker="TECHNOLOGY INTELLIGENCE REPORT"):
+                    kicker="TECHNOLOGY INTELLIGENCE REPORT",
+                    umap_points=None, emerging_cids=None):
     """表紙 — 黒背景の大胆なエディトリアル演出（デッキの第一印象を決める頁）
 
     構成（柱0「インパクト演出」）:
@@ -607,89 +689,30 @@ def add_title_slide(prs, title, subtitle, date, blank,
     slide = prs.slides.add_slide(blank)
     _hide_master(slide)
 
-    bg = slide.background.fill
-    bg.solid()
-    bg.fore_color.rgb = DARK_SECTION
+    # 白基調: 発明スライド由来の「白×赤斜線」背景画像を全面に敷く（無ければ白ベタ）
+    slide.background.fill.solid()
+    slide.background.fill.fore_color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+    if CV_BG_LIGHT_PATH and os.path.exists(CV_BG_LIGHT_PATH):
+        slide.shapes.add_picture(CV_BG_LIGHT_PATH, Inches(0), Inches(0), Inches(13.333), Inches(7.5))
+    # 左端の極細クリムゾン・ストリップ（赤の背骨＝アンカー）
+    _cv_rect(slide, 0, 0, 0.12, 7.5, _CV["crimson"], 100)
 
-    # 巨大ゴースト・ワードマーク（背面・低コントラストで奥行きを作る）。WORDMARK が空なら描かない
+    # キッカー（Century Gothic・クリムゾン・タイトルの直上に配置）
+    _cv_txt(slide, kicker, 0.97, 2.52, 8.2, 0.36, 12.5, _CV["crimson"], "Century Gothic", False, PP_ALIGN.LEFT, 2.4)
+    # ワードマーク（任意・淡グレー）
     if WORDMARK:
-        ghost = slide.shapes.add_textbox(Inches(0.7), Inches(4.55), Inches(13.0), Inches(2.6))
-        gtf = ghost.text_frame
-        gtf.word_wrap = False
-        gtf.auto_size = MSO_AUTO_SIZE.NONE
-        grun = gtf.paragraphs[0].add_run()
-        grun.text = WORDMARK
-        grun.font.size = Pt(150)
-        grun.font.bold = True
-        grun.font.color.rgb = RGBColor(0x1B, 0x1B, 0x1F)  # 黒よりわずかに明るい墨
-        _apply_font(grun, heading=True)
-        _track(grun, 400)
+        _cv_txt(slide, WORDMARK, 0.97, 1.30, 6.0, 0.4, 11.5, "8A8A8A", "Century Gothic", False, PP_ALIGN.LEFT, 5.0)
 
-    # 左端フル丈クリムゾン・ストリップ
-    strip = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(0.30), Inches(7.5))
-    strip.fill.solid()
-    strip.fill.fore_color.rgb = ACCENT
-    strip.line.fill.background()
-
-    # キッカー（赤・字間広め・全大文字）
-    kick = slide.shapes.add_textbox(Inches(1.15), Inches(0.95), Inches(11), Inches(0.4))
-    kick.text_frame.word_wrap = True
-    kick.text_frame.auto_size = MSO_AUTO_SIZE.NONE
-    krun = kick.text_frame.paragraphs[0].add_run()
-    krun.text = kicker
-    krun.font.size = Pt(12); krun.font.bold = True; krun.font.color.rgb = RED_ON_DARK
-    _apply_font(krun, heading=True); _track(krun, 280)
-
-    # ワードマーク（白・字間広め）。WORDMARK が空なら描かない
-    if WORDMARK:
-        wm = slide.shapes.add_textbox(Inches(1.15), Inches(1.42), Inches(8), Inches(0.5))
-        wm.text_frame.word_wrap = True
-        wm.text_frame.auto_size = MSO_AUTO_SIZE.NONE
-        wrun = wm.text_frame.paragraphs[0].add_run()
-        wrun.text = WORDMARK
-        wrun.font.size = Pt(20); wrun.font.bold = True; wrun.font.color.rgb = WHITE
-        _apply_font(wrun, heading=True); _track(wrun, 600)
-
-    # タイトル長で大判サイズを段階選択
+    # タイトル（Century Gothic 細字・墨・大きめ・縦中央。長さで級数を自動調整）
     tlen = len(title)
-    if tlen <= 16:
-        t_size, t_y = Pt(48), 2.95
-    elif tlen <= 28:
-        t_size, t_y = Pt(40), 2.85
-    else:
-        t_size, t_y = Pt(34), 2.75
+    t_size = 50 if tlen <= 12 else (42 if tlen <= 16 else (34 if tlen <= 22 else 30))
+    _cv_txt(slide, title, 0.95, 3.06, 8.3, 1.30, t_size, "1A1A1E", "Century Gothic", False,
+            PP_ALIGN.LEFT, 0.4, MSO_ANCHOR.MIDDLE)
+    # サブタイトル（対象・件数のみ／濃灰）
+    _cv_txt(slide, subtitle, 0.98, 4.62, 7.6, 0.8, 12.5, "55585E", _CV_GO, False, PP_ALIGN.LEFT)
 
-    # 太いクリムゾン罫（タイトル直上）
-    line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(1.18), Inches(t_y - 0.40), Inches(3.4), Inches(0.11))
-    line.fill.solid()
-    line.fill.fore_color.rgb = ACCENT
-    line.line.fill.background()
-
-    # タイトル（大判 White Bold 明朝）
-    txBox = slide.shapes.add_textbox(Inches(1.15), Inches(t_y), Inches(11.4), Inches(2.4))
-    tf = txBox.text_frame
-    tf.word_wrap = True
-    tf.auto_size = MSO_AUTO_SIZE.NONE
-    set_text(tf.paragraphs[0], title, t_size, WHITE, bold=True, line_spacing=1.16, heading=True)
-
-    # サブタイトル（淡グレー）
-    txBox2 = slide.shapes.add_textbox(Inches(1.18), Inches(5.55), Inches(11), Inches(0.6))
-    txBox2.text_frame.word_wrap = True
-    txBox2.text_frame.auto_size = MSO_AUTO_SIZE.NONE
-    set_text(txBox2.text_frame.paragraphs[0], subtitle, Pt(15), RGBColor(0xC2, 0xC2, 0xC6), heading=True)
-
-    # 下部メタデータ帯（クリムゾン帯に白文字反転）
-    band = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(6.78), Inches(13.33), Inches(0.46))
-    band.fill.solid()
-    band.fill.fore_color.rgb = ACCENT
-    band.line.fill.background()
-    meta = slide.shapes.add_textbox(Inches(1.15), Inches(6.85), Inches(11.0), Inches(0.34))
-    meta.text_frame.word_wrap = True
-    meta.text_frame.auto_size = MSO_AUTO_SIZE.NONE
-    mrun = meta.text_frame.paragraphs[0].add_run()
-    mrun.text = date
-    mrun.font.size = Pt(11); mrun.font.bold = True; mrun.font.color.rgb = WHITE
-    _apply_font(mrun, heading=True); _track(mrun, 120)
+    # 日付（YYYY/MM/DD・Century Gothic・墨グレー・やや上）
+    _cv_txt(slide, date, 0.97, 6.55, 9.5, 0.32, 11.5, "55585E", "Century Gothic", False, PP_ALIGN.LEFT, 0.8)
     return slide
 
 
@@ -934,14 +957,27 @@ def add_chart_text_slide(prs, title, sub_message, image_path, annotations, blank
         img_y = content_y
         img_h = remaining_h - 0.3
 
-    # チャート画像（領域を埋める）
+    # チャート画像（左上揃えで領域に配置）。縦長画像でも左右に死に余白を作らない
     full_path = os.path.join(SNAP, image_path) if not os.path.isabs(image_path) else image_path
-    fit_image(slide, full_path, max_x=chart_x, max_y=img_y, max_w=chart_w, max_h=img_h)
+    img_halign = "left" if text_side == "right" else "right"
+    pic = fit_image(slide, full_path, max_x=chart_x, max_y=img_y,
+                    max_w=chart_w, max_h=img_h, halign=img_halign, valign="top")
 
-    # キャプション
+    # 実際の描画矩形に合わせて注釈を密着させ、左右バランスを締める
+    cap_x, cap_w = chart_x, chart_w
+    if pic is not None and getattr(pic, "_fit_rect", None):
+        real_left, _real_top, real_w, _real_h = pic._fit_rect
+        cap_x, cap_w = real_left, real_w
+        if text_side == "right":
+            text_x = real_left + real_w + 0.30          # 実描画右端＋わずかな間隔
+            text_w = max(2.7, content_x + content_w - text_x)
+        else:
+            text_w = max(2.7, real_left - 0.30 - content_x)
+
+    # キャプション（実描画域の中央に置く）
     if caption:
-        txBox = slide.shapes.add_textbox(Inches(chart_x), Inches(content_y + remaining_h - 0.25),
-                                          Inches(chart_w), Inches(0.25))
+        txBox = slide.shapes.add_textbox(Inches(cap_x), Inches(content_y + remaining_h - 0.25),
+                                          Inches(cap_w), Inches(0.25))
         set_text(txBox.text_frame.paragraphs[0], caption, Pt(10), MEDIUM_GRAY)
         txBox.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
 
@@ -2300,9 +2336,15 @@ def add_insight_slide(prs, title, sub_message, layers, blank,
     content_y = add_sub_message(slide, sub_message, y=sub_y) if sub_message else sub_y + 0.1
 
     n = max(1, len(layers))
-    avail_h = 6.7 - content_y
-    gap = 0.18
+    avail_h = 6.72 - content_y
+    gap = 0.14                     # ブロック間を詰めて本文行数を確保
     block_h = (avail_h - gap * (n - 1)) / n
+    # （A1）固定13pt・行間1.3のまま、本文ボックスに収まる文字数を算出して切り詰める
+    body_off = 0.27                # ラベル行ぶんのオフセット
+    body_w = CONTENT_W - 0.18
+    body_h = block_h - body_off
+    line_sp = 1.3
+    _, _, body_cap = _text_capacity(body_w, body_h, 13, line_spacing=line_sp)
     y = content_y
     for lyr in layers:
         # 左の細い赤バー
@@ -2313,12 +2355,18 @@ def add_insight_slide(prs, title, sub_message, layers, blank,
         lb = slide.shapes.add_textbox(Inches(MARGIN_L + 0.18), Inches(y),
                                       Inches(2.0), Inches(0.3))
         set_text(lb.text_frame.paragraphs[0], lyr.get("label", ""), Pt(11), ACCENT, bold=True)
-        # 本文段落（墨・読みやすい行間）
-        body = slide.shapes.add_textbox(Inches(MARGIN_L + 0.18), Inches(y + 0.30),
-                                        Inches(CONTENT_W - 0.18), Inches(block_h - 0.32))
+        # 本文段落（墨・読みやすい行間）— 箱に収まる文字数に制限（フォントは縮めない）
+        body = slide.shapes.add_textbox(Inches(MARGIN_L + 0.18), Inches(y + body_off),
+                                        Inches(body_w), Inches(body_h))
         tf = body.text_frame; tf.word_wrap = True; tf.auto_size = MSO_AUTO_SIZE.NONE
-        add_rich_runs(tf.paragraphs[0], lyr.get("body", ""), base_size=Pt(13),
-                      base_color=DARK_GRAY, bold_color=INK, line_spacing=1.4)
+        # 考察は深く書きたい場合を優先: 切り詰めず全文表示（容量超過は注意喚起のみ・重なり許容）
+        body_txt = lyr.get("body", "")
+        _vis = len(re.sub(r'\*\*', '', body_txt))
+        if _vis > body_cap:
+            print(f"[INFO] 考察『{lyr.get('label', '')}』は目安{body_cap}字超（{_vis}字）"
+                  f"。全文表示（次ブロックと重なる場合あり）— 必要なら2スライドに分割")
+        add_rich_runs(tf.paragraphs[0], body_txt, base_size=Pt(13),
+                      base_color=DARK_GRAY, bold_color=INK, line_spacing=line_sp)
         y += block_h + gap
 
     if source:
@@ -3028,9 +3076,8 @@ def add_invention_zone_slide(prs, zone, blank, page_num=None):
     """発明アイディア（白背景版）。タイトルは他スライドと整合（add_title_shape・明朝）。
     zone: {zoneName,headline,subtitle,claimDraft,problem,inventionPoint,priorArt:{number,applicant,claim},logicSteps:[5]}"""
     s = prs.slides.add_slide(blank)
+    # 普通の白背景に変更（白×赤斜線画像は表紙へ転用したため、ここでは使わない）
     s.background.fill.solid(); s.background.fill.fore_color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-    if CV_BG_LIGHT_PATH and os.path.exists(CV_BG_LIGHT_PATH):
-        s.shapes.add_picture(CV_BG_LIGHT_PATH, Inches(0), Inches(0), Inches(13.333), Inches(7.5))
     sub_y = add_title_shape(s, zone.get("headline", ""), label=str(zone.get("zoneName", "")).upper())
     if zone.get("subtitle"):
         st = s.shapes.add_textbox(Inches(MARGIN_L), Inches(sub_y + 0.02), Inches(CONTENT_W), Inches(0.32))
