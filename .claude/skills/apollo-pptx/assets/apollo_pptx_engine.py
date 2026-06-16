@@ -697,22 +697,22 @@ def add_title_slide(prs, title, subtitle, date, blank,
     # 左端の極細クリムゾン・ストリップ（赤の背骨＝アンカー）
     _cv_rect(slide, 0, 0, 0.12, 7.5, _CV["crimson"], 100)
 
-    # キッカー（クリムゾン・全大文字・字間広め）
-    _cv_txt(slide, kicker, 0.95, 1.16, 8.2, 0.4, 13, _CV["crimson"], _CV_GO, True, PP_ALIGN.LEFT, 2.6)
-    # ワードマーク（任意・淡グレーで字間広め）
+    # キッカー（Century Gothic・クリムゾン・タイトルの直上に配置）
+    _cv_txt(slide, kicker, 0.97, 2.52, 8.2, 0.36, 12.5, _CV["crimson"], "Century Gothic", False, PP_ALIGN.LEFT, 2.4)
+    # ワードマーク（任意・淡グレー）
     if WORDMARK:
-        _cv_txt(slide, WORDMARK, 0.97, 1.62, 6.0, 0.4, 11.5, "8A8A8A", _CV_GO, True, PP_ALIGN.LEFT, 5.0)
+        _cv_txt(slide, WORDMARK, 0.97, 1.30, 6.0, 0.4, 11.5, "8A8A8A", "Century Gothic", False, PP_ALIGN.LEFT, 5.0)
 
-    # タイトル（墨・明朝。長さで級数を自動調整し1行に収め語の孤立を避ける）
+    # タイトル（Century Gothic 細字・墨・大きめ・縦中央。長さで級数を自動調整）
     tlen = len(title)
-    t_size = 46 if tlen <= 12 else (38 if tlen <= 16 else (31 if tlen <= 22 else 27))
-    t_y = 2.84 if tlen <= 22 else 3.02
-    _cv_txt(slide, title, 0.95, t_y, 8.05, 2.1, t_size, "1A1A1E", _CV_MIN, True, PP_ALIGN.LEFT, 0.3)
-    # サブタイトル（ダークグレー・ゴシック）
-    _cv_txt(slide, subtitle, 0.98, 5.42, 7.0, 1.0, 13.5, "55585E", _CV_GO, False, PP_ALIGN.LEFT)
+    t_size = 50 if tlen <= 12 else (42 if tlen <= 16 else (34 if tlen <= 22 else 30))
+    _cv_txt(slide, title, 0.95, 3.06, 8.3, 1.30, t_size, "1A1A1E", "Century Gothic", False,
+            PP_ALIGN.LEFT, 0.4, MSO_ANCHOR.MIDDLE)
+    # サブタイトル（対象・件数のみ／濃灰）
+    _cv_txt(slide, subtitle, 0.98, 4.62, 7.6, 0.8, 12.5, "55585E", _CV_GO, False, PP_ALIGN.LEFT)
 
-    # 日付・発行情報（帯なし・墨グレーの控えめ表記）
-    _cv_txt(slide, date, 0.97, 6.94, 9.5, 0.32, 11, "55585E", _CV_GO, True, PP_ALIGN.LEFT, 1.2)
+    # 日付（YYYY/MM/DD・Century Gothic・墨グレー・やや上）
+    _cv_txt(slide, date, 0.97, 6.55, 9.5, 0.32, 11.5, "55585E", "Century Gothic", False, PP_ALIGN.LEFT, 0.8)
     return slide
 
 
