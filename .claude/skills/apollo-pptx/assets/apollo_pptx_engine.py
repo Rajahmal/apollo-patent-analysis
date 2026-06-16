@@ -703,9 +703,7 @@ def add_title_slide(prs, title, subtitle, date, blank,
     if WORDMARK:
         _cv_txt(slide, WORDMARK, 0.97, 1.62, 6.0, 0.4, 11.5, "8A8A8A", _CV_GO, True, PP_ALIGN.LEFT, 5.0)
 
-    # タイトル直上の太クリムゾン罫
-    _cv_rect(slide, 0.98, 2.60, 2.7, 0.085, _CV["crimson"], 100)
-    # 大判タイトル（墨・明朝。長さで級数を自動調整し1行に収め語の孤立を避ける）
+    # タイトル（墨・明朝。長さで級数を自動調整し1行に収め語の孤立を避ける）
     tlen = len(title)
     t_size = 46 if tlen <= 12 else (38 if tlen <= 16 else (31 if tlen <= 22 else 27))
     t_y = 2.84 if tlen <= 22 else 3.02
@@ -713,9 +711,8 @@ def add_title_slide(prs, title, subtitle, date, blank,
     # サブタイトル（ダークグレー・ゴシック）
     _cv_txt(slide, subtitle, 0.98, 5.42, 7.0, 1.0, 13.5, "55585E", _CV_GO, False, PP_ALIGN.LEFT)
 
-    # 下部メタ帯（クリムゾン帯に白反転）
-    _cv_rect(slide, 0, 6.84, 13.333, 0.42, _CV["crimson"], 100)
-    _cv_txt(slide, date, 0.97, 6.90, 9.5, 0.32, 11, _CV["white"], _CV_GO, True, PP_ALIGN.LEFT, 1.2)
+    # 日付・発行情報（帯なし・墨グレーの控えめ表記）
+    _cv_txt(slide, date, 0.97, 6.94, 9.5, 0.32, 11, "55585E", _CV_GO, True, PP_ALIGN.LEFT, 1.2)
     return slide
 
 
