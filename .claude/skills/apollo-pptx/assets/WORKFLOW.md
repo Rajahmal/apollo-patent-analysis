@@ -20,8 +20,9 @@
 | 背景 | スライド関数 | 章・用途 | 文字色 |
 |------|------------|---------|-------|
 | `dark_red_background.png`（暗赤） | `add_statement_slide`→`add_closing_slide` | 章10 総括の黒地3点／締めクロージング | 白＋赤ラベル |
-| `light_red_background.png`（白赤） | `add_invention_zone_slide` | 章12 付録2 発明アイディア3枚 | 黒＋赤アクセント |
-| 画像なし＝Crimson Vector（純ベクター） | `add_title_slide`／`add_section_slide`／`add_pyramid_slide` | 表紙・全章扉・結論ピラミッド | 白（暗背景） |
+| `light_red_background.png`（白赤） | **`add_title_slide`（表紙）** | 表紙・白基調 | 墨＋赤アクセント |
+| 画像なし＝白ベタ | `add_invention_zone_slide` | 章12 付録2 発明アイディア3枚（普通の白背景） | 黒＋赤アクセント |
+| 画像なし＝Crimson Vector（純ベクター） | `add_section_slide`／`add_pyramid_slide` | 全章扉・結論ピラミッド | 白（暗背景） |
 
 ## 1. 作業順序（厳守）
 1. SKILL.md の **受け入れ条件ゲート G1〜G7** と **標準デッキ・ブループリント** を確認（完成基準を頭に入れる）。
@@ -115,13 +116,14 @@ _umap_points = [(float(r["umap_x"]), float(r["umap_y"]), r["cluster"]) for r in 
 - **チャート＋注釈 `add_chart_text_slide` は左上揃え＋注釈密着**: 図を中央でなく**左上に寄せ**、注釈は図の
   **実描画右端**に密着配置（縦長スナップショットでの左右の死に余白を解消）。content 側の指定変更は不要。
 
-## 3.8 v6.23 表紙＝Crimson Vector 建築ステージ（章扉と統一）
-- 表紙 `add_title_slide` は**章扉と同じ Crimson Vector の建築ステージ**（`_cv_base_stage`：黒の舞台＋右の
-  クリムゾン建築面＋スキャンライン）を背景に、左カラムへ**キッカー（赤）→太赤罫→大判アイボリー明朝タイトル
-  →サブタイトル→下部クリムゾン帯**を組む。**全頁で視覚言語が統一**される。
-- タイトルは文字数で級数自動調整（1行に収め語の孤立を防ぐ）。content 側の追加指定は不要。
-- ※旧 v6.23 初版の「実点群を表紙に敷くデータ・アズ・アート（散布ドット）」は**意匠性が弱く撤回**。
-  `add_title_slide(umap_points=, emerging_cids=)` の引数は後方互換で受けるが**現在は未使用**。
+## 3.8 v6.23 表紙＝白基調（白×赤斜線の背景画像を転用）
+- 表紙 `add_title_slide` は **`light_red_background.png`（白×赤斜線）を全面背景**に、左カラムへ
+  **キッカー（赤）→太赤罫→大判タイトル（墨・明朝）→サブタイトル（濃灰）→下部クリムゾン帯（白字）**を組む。
+  画像が無い環境では白ベタにフォールバック。タイトルは文字数で級数自動調整（1行に収め語の孤立を防ぐ）。
+- これに伴い **発明スライド `add_invention_zone_slide` は当該画像をやめ、普通の白背景**にした
+  （白×赤斜線画像は表紙へ転用）。content 側の追加指定は不要。
+- ※旧案（散布ドットのデータ・アズ・アート／黒地 Crimson Vector ステージ）は撤回。
+  `add_title_slide(umap_points=, emerging_cids=)` の引数は後方互換で受けるが**未使用**。
 
 ## 4. やってはいけないこと（再発防止）
 - **`deco(add_x(...))` でラップしない（v6.21〜）**→ `add_x(...)` を直接呼ぶ（二重括弧の閉じ忘れ防止＋自動マーク）。

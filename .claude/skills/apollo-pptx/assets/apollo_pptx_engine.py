@@ -689,31 +689,29 @@ def add_title_slide(prs, title, subtitle, date, blank,
     slide = prs.slides.add_slide(blank)
     _hide_master(slide)
 
-    bg = slide.background.fill
-    bg.solid()
-    bg.fore_color.rgb = DARK_SECTION
-
-    # 章扉と同じ Crimson Vector の建築ステージを背景に（全頁で視覚言語を統一）
-    _cv_base_stage(slide, red=True)
-    # 左端の極細クリムゾン・ストリップ（アンカー）
+    # 白基調: 発明スライド由来の「白×赤斜線」背景画像を全面に敷く（無ければ白ベタ）
+    slide.background.fill.solid()
+    slide.background.fill.fore_color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+    if CV_BG_LIGHT_PATH and os.path.exists(CV_BG_LIGHT_PATH):
+        slide.shapes.add_picture(CV_BG_LIGHT_PATH, Inches(0), Inches(0), Inches(13.333), Inches(7.5))
+    # 左端の極細クリムゾン・ストリップ（赤の背骨＝アンカー）
     _cv_rect(slide, 0, 0, 0.12, 7.5, _CV["crimson"], 100)
-
 
     # キッカー（クリムゾン・全大文字・字間広め）
     _cv_txt(slide, kicker, 0.95, 1.16, 8.2, 0.4, 13, _CV["crimson"], _CV_GO, True, PP_ALIGN.LEFT, 2.6)
     # ワードマーク（任意・淡グレーで字間広め）
     if WORDMARK:
-        _cv_txt(slide, WORDMARK, 0.97, 1.62, 6.0, 0.4, 11.5, _CV["gray"], _CV_GO, True, PP_ALIGN.LEFT, 5.0)
+        _cv_txt(slide, WORDMARK, 0.97, 1.62, 6.0, 0.4, 11.5, "8A8A8A", _CV_GO, True, PP_ALIGN.LEFT, 5.0)
 
     # タイトル直上の太クリムゾン罫
     _cv_rect(slide, 0.98, 2.60, 2.7, 0.085, _CV["crimson"], 100)
-    # 大判タイトル（アイボリー明朝・長さで段階＝1行に収め語の孤立を避ける）
+    # 大判タイトル（墨・明朝。長さで級数を自動調整し1行に収め語の孤立を避ける）
     tlen = len(title)
     t_size = 46 if tlen <= 12 else (38 if tlen <= 16 else (31 if tlen <= 22 else 27))
     t_y = 2.84 if tlen <= 22 else 3.02
-    _cv_txt(slide, title, 0.95, t_y, 8.05, 2.1, t_size, _CV["ivory"], _CV_MIN, True, PP_ALIGN.LEFT, 0.3)
-    # サブタイトル（淡グレー・ゴシック）
-    _cv_txt(slide, subtitle, 0.98, 5.42, 7.0, 1.0, 13.5, _CV["gray"], _CV_GO, False, PP_ALIGN.LEFT)
+    _cv_txt(slide, title, 0.95, t_y, 8.05, 2.1, t_size, "1A1A1E", _CV_MIN, True, PP_ALIGN.LEFT, 0.3)
+    # サブタイトル（ダークグレー・ゴシック）
+    _cv_txt(slide, subtitle, 0.98, 5.42, 7.0, 1.0, 13.5, "55585E", _CV_GO, False, PP_ALIGN.LEFT)
 
     # 下部メタ帯（クリムゾン帯に白反転）
     _cv_rect(slide, 0, 6.84, 13.333, 0.42, _CV["crimson"], 100)
@@ -3081,9 +3079,8 @@ def add_invention_zone_slide(prs, zone, blank, page_num=None):
     """発明アイディア（白背景版）。タイトルは他スライドと整合（add_title_shape・明朝）。
     zone: {zoneName,headline,subtitle,claimDraft,problem,inventionPoint,priorArt:{number,applicant,claim},logicSteps:[5]}"""
     s = prs.slides.add_slide(blank)
+    # 普通の白背景に変更（白×赤斜線画像は表紙へ転用したため、ここでは使わない）
     s.background.fill.solid(); s.background.fill.fore_color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-    if CV_BG_LIGHT_PATH and os.path.exists(CV_BG_LIGHT_PATH):
-        s.shapes.add_picture(CV_BG_LIGHT_PATH, Inches(0), Inches(0), Inches(13.333), Inches(7.5))
     sub_y = add_title_shape(s, zone.get("headline", ""), label=str(zone.get("zoneName", "")).upper())
     if zone.get("subtitle"):
         st = s.shapes.add_textbox(Inches(MARGIN_L), Inches(sub_y + 0.02), Inches(CONTENT_W), Inches(0.32))

@@ -106,8 +106,9 @@ command: /pptx
 | 背景画像 | 使うスライド関数 | 章・用途 | 文字色 |
 |---------|----------------|---------|-------|
 | **`dark_red_background.png`（暗赤）** | `add_statement_slide` → `add_closing_slide` | **章10 総括の黒地3点ステートメント**／**締めのクロージング** | 白＋赤ラベル |
-| **`light_red_background.png`（白赤）** | `add_invention_zone_slide` | **章12 付録2 発明アイディア（Hot/Remote/Battle）3枚** | 黒＋赤アクセント |
-| 画像不使用＝**Crimson Vector（純ベクター）** | `add_title_slide`／`add_section_slide`／`add_pyramid_slide` | **表紙・全章扉・総括の結論ピラミッド** | 白（暗背景） |
+| **`light_red_background.png`（白赤）** | **`add_title_slide`（表紙）** | **表紙（白基調）** | 墨＋赤アクセント |
+| 画像不使用＝**白ベタ** | `add_invention_zone_slide` | **章12 付録2 発明アイディア（Hot/Remote/Battle）3枚＝普通の白背景** | 黒＋赤アクセント |
+| 画像不使用＝**Crimson Vector（純ベクター）** | `add_section_slide`／`add_pyramid_slide` | **全章扉・総括の結論ピラミッド** | 白（暗背景） |
 
 - 暗背景頁は `_hide_master(slide)` でマスターの天辺ヘアラインを非表示にする（黒地に赤線が透けない）。エンジンが自動処理。
 - 背景画像が見つからない場合（パス未注入）でもエンジンは**暗色ベタ／白ベタで代替**して破綻しない。ただし**正規の見た目には2枚の同梱画像が必須**。
