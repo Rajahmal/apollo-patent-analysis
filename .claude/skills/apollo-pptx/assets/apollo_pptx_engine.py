@@ -3790,6 +3790,8 @@ def add_insight_tape(slide, text: str,
 #     left=0.9, bottom_y=chart_bottom, width=7.8)
 
 
+SHOW_CORNER_MARKS = False   # 設計判断: コーナーマークは廃止（ナビは左端の章ガイドに一本化）
+
 def add_corner_marks(slide,
                      slide_w_in: float = 13.33,
                      slide_h_in: float = 7.5,
@@ -3801,6 +3803,8 @@ def add_corner_marks(slide,
         leg    : L字の一辺の長さ（Inches）
         margin : スライド端からの内側オフセット（Inches）
     """
+    if not SHOW_CORNER_MARKS:   # 廃止: 既定では描かない（再有効化は SHOW_CORNER_MARKS=True）
+        return
     from pptx.util import Inches, Pt, Emu
     from pptx.dml.color import RGBColor
 
