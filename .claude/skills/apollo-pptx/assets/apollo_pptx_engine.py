@@ -27,6 +27,8 @@ BORDER_GRAY = RGBColor(0xD8, 0xDA, 0xDD) # 罫線・区切り線
 
 # --- クリムゾン・アクセント（単一アクセント） ---
 ACCENT = RGBColor(0xC5, 0x12, 0x12)     # アクセントバー・ラベル・強調（=RED）
+BRIGHT_RED = RGBColor(0xF4, 0x33, 0x33) # 明るい赤（クリムゾン→明赤グラデの片側）
+CRIMSON_DEEP = RGBColor(0x8E, 0x00, 0x14) # 深紅（深→クリムゾングラデの片側）
 RED = RGBColor(0xC5, 0x12, 0x12)
 BRIGHT_RED = RGBColor(0xE3, 0x33, 0x33) # ハイライト/ホバー相当の明るい赤
 DEEP_RED = RGBColor(0x83, 0x10, 0x10)   # チャート最濃バー（"now"）
@@ -229,29 +231,36 @@ def add_sub_message(slide, message, x=MARGIN_L, y=None, w=CONTENT_W):
     num_lines = max(1, -(-len(message) // chars_per_line))
     box_h = 0.20 + num_lines * 0.35
 
-    # 背景ボックス（KEY_MSG_BG）
+    # 背景ボックス（角丸・淡グレー面）
     box = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(x), Inches(y), Inches(w), Inches(box_h)
+        MSO_SHAPE.ROUNDED_RECTANGLE, Inches(x), Inches(y), Inches(w), Inches(box_h)
     )
+    try: box.adjustments[0] = min(0.5, 0.16 / box_h)   # 角丸半径≈0.16inで一定に
+    except Exception: pass
     box.fill.solid()
     box.fill.fore_color.rgb = KEY_MSG_BG
     box.line.fill.background()
+    try: box.shadow.inherit = False
+    except Exception: pass
 
-    # 左アクセントバー
+    # 左アクセントバー（クリムゾン→明赤の縦グラデ・角丸・上下インセット）
     bar = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(x), Inches(y), Emu(36576), Inches(box_h)
+        MSO_SHAPE.ROUNDED_RECTANGLE, Inches(x + 0.07), Inches(y + 0.10),
+        Inches(0.075), Inches(box_h - 0.20)
     )
-    bar.fill.solid()
-    bar.fill.fore_color.rgb = ACCENT
-    bar.line.fill.background()
+    try: bar.adjustments[0] = 0.5
+    except Exception: pass
+    grad_fill(bar, ACCENT, BRIGHT_RED, angle=90)
 
-    # テキスト
+    # テキスト（オブジェクト内で上下中央寄せ）
     txBox = slide.shapes.add_textbox(
-        Inches(x + 0.15), Inches(y + 0.08), Inches(w - 0.30), Inches(box_h - 0.16)
+        Inches(x + 0.32), Inches(y), Inches(w - 0.50), Inches(box_h)
     )
     tf = txBox.text_frame
     tf.word_wrap = True
     tf.auto_size = MSO_AUTO_SIZE.NONE
+    tf.vertical_anchor = MSO_ANCHOR.MIDDLE          # 上下中央寄せ
+    tf.margin_top = 0; tf.margin_bottom = 0
     p = tf.paragraphs[0]
     marker = p.add_run()
     marker.text = "■ "
@@ -277,6 +286,21 @@ def add_sub_message(slide, message, x=MARGIN_L, y=None, w=CONTENT_W):
     p.line_spacing = 1.5
 
     return y + box_h + 0.10
+
+
+def grad_fill(shape, c1, c2, angle=90):
+    """既存図形にクリムゾン→明赤などのグラデーション塗りを適用する（影は継承しない）。
+    c1, c2 は RGBColor。アクセントバー・KPI強調・棒グラフの注目バー等に使う。"""
+    shape.line.fill.background()
+    try: shape.shadow.inherit = False
+    except Exception: pass
+    shape.fill.gradient()
+    gs = shape.fill.gradient_stops
+    gs[0].color.rgb = c1; gs[0].position = 0.0
+    gs[1].color.rgb = c2; gs[1].position = 1.0
+    try: shape.fill.gradient_angle = angle
+    except Exception: pass
+    return shape
 
 
 def grad_rect(slide, x, y, w, h, c1, c2, angle=90, radius=0.0):
@@ -1115,8 +1139,14 @@ def add_kpi_slide(prs, title, sub_message, kpis, blank,
         card.fill.solid()
         card.fill.fore_color.rgb = RGBColor(0xFA, 0xF1, 0xF1) if emph else PALE_GRAY
         card.line.fill.background()  # 枠線なし
+        try: card.shadow.inherit = False
+        except Exception: pass
 
-        # （カード上部の横長アクセント帯は廃止＝視覚ノイズ削減）
+        # 強調カードのみ左端にクリムゾン→明赤のグラデ・アクセントバー（赤9:1・視覚ノイズ最小）
+        if emph:
+            ab = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(x), Inches(y),
+                                        Inches(0.075), Inches(card_h))
+            grad_fill(ab, ACCENT, BRIGHT_RED, angle=90)
 
         # アイコン（Material Symbols をPNG化して右上に配置・配布先のフォント不要）
         if kpi.get("icon"):
