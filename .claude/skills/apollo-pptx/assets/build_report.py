@@ -66,7 +66,10 @@ G["MS_CP_PATH"] = os.path.join(ASSET_DIR, "MaterialSymbolsOutlined.codepoints")
 G["CV_BG_PATH"] = os.path.join(ASSET_DIR, "dark_red_background.png")
 G["CV_BG_LIGHT_PATH"] = os.path.join(ASSET_DIR, "light_red_background.png")
 # 出所表記とブループリント章数は content 側で上書き可（既定値を置く）
-G.setdefault("TOTAL_CHAPTERS", 12)
+# ※ engine が TOTAL_CHAPTERS=0 を先に定義するため setdefault では上書きされない。
+#   0/未設定のときだけ 12 を入れる（これが無いと左端の章ガイドが描画されない）。
+if not G.get("TOTAL_CHAPTERS"):
+    G["TOTAL_CHAPTERS"] = 12
 G.setdefault("SRC", "特許データセット（条件検索, 取得日を明記）")
 
 # --- テーマ固有の中身を流し込む ---------------------------------------------

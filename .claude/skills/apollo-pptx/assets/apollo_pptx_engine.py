@@ -27,6 +27,8 @@ BORDER_GRAY = RGBColor(0xD8, 0xDA, 0xDD) # 罫線・区切り線
 
 # --- クリムゾン・アクセント（単一アクセント） ---
 ACCENT = RGBColor(0xC5, 0x12, 0x12)     # アクセントバー・ラベル・強調（=RED）
+BRIGHT_RED = RGBColor(0xF4, 0x33, 0x33) # 明るい赤（クリムゾン→明赤グラデの片側）
+CRIMSON_DEEP = RGBColor(0x8E, 0x00, 0x14) # 深紅（深→クリムゾングラデの片側）
 RED = RGBColor(0xC5, 0x12, 0x12)
 BRIGHT_RED = RGBColor(0xE3, 0x33, 0x33) # ハイライト/ホバー相当の明るい赤
 DEEP_RED = RGBColor(0x83, 0x10, 0x10)   # チャート最濃バー（"now"）
@@ -225,40 +227,32 @@ def add_sub_message(slide, message, x=MARGIN_L, y=None, w=CONTENT_W):
     """
     if y is None:
         y = 1.00
-    chars_per_line = 40
+    chars_per_line = 38
     num_lines = max(1, -(-len(message) // chars_per_line))
-    box_h = 0.20 + num_lines * 0.35
+    box_h = 0.22 + num_lines * 0.38
 
-    # 背景ボックス（KEY_MSG_BG）
+    # 背景ボックス（角丸・淡グレー面・枠線なし）
     box = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(x), Inches(y), Inches(w), Inches(box_h)
+        MSO_SHAPE.ROUNDED_RECTANGLE, Inches(x), Inches(y), Inches(w), Inches(box_h)
     )
+    try: box.adjustments[0] = min(0.5, 0.16 / box_h)   # 角丸半径≈0.16inで一定に
+    except Exception: pass
     box.fill.solid()
     box.fill.fore_color.rgb = KEY_MSG_BG
     box.line.fill.background()
+    try: box.shadow.inherit = False
+    except Exception: pass
 
-    # 左アクセントバー
-    bar = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(x), Inches(y), Emu(36576), Inches(box_h)
-    )
-    bar.fill.solid()
-    bar.fill.fore_color.rgb = ACCENT
-    bar.line.fill.background()
-
-    # テキスト
+    # テキスト（先頭の■記号なし・オブジェクト内で上下中央寄せ・1段大きめ）
     txBox = slide.shapes.add_textbox(
-        Inches(x + 0.15), Inches(y + 0.08), Inches(w - 0.30), Inches(box_h - 0.16)
+        Inches(x + 0.24), Inches(y), Inches(w - 0.44), Inches(box_h)
     )
     tf = txBox.text_frame
     tf.word_wrap = True
     tf.auto_size = MSO_AUTO_SIZE.NONE
+    tf.vertical_anchor = MSO_ANCHOR.MIDDLE          # 上下中央寄せ
+    tf.margin_top = 0; tf.margin_bottom = 0
     p = tf.paragraphs[0]
-    marker = p.add_run()
-    marker.text = "■ "
-    marker.font.size = Pt(15)
-    marker.font.color.rgb = ACCENT  # クリムゾンのマーカー
-    marker.font.bold = True
-    _apply_font(marker)
     parts = re.split(r'(\*\*.*?\*\*)', message)
     for part in parts:
         if not part:
@@ -271,12 +265,49 @@ def add_sub_message(slide, message, x=MARGIN_L, y=None, w=CONTENT_W):
         else:
             run.text = part
             run.font.color.rgb = DARK_GRAY
-        run.font.size = Pt(15)
+        run.font.size = Pt(16.5)                     # 1段階拡大（旧15pt）
         _apply_font(run)
     _apply_kinsoku(p)
-    p.line_spacing = 1.5
+    p.line_spacing = 1.4
 
     return y + box_h + 0.10
+
+
+def grad_fill(shape, c1, c2, angle=90):
+    """既存図形にクリムゾン→明赤などのグラデーション塗りを適用する（影は継承しない）。
+    c1, c2 は RGBColor。アクセントバー・KPI強調・棒グラフの注目バー等に使う。"""
+    shape.line.fill.background()
+    try: shape.shadow.inherit = False
+    except Exception: pass
+    shape.fill.gradient()
+    gs = shape.fill.gradient_stops
+    gs[0].color.rgb = c1; gs[0].position = 0.0
+    gs[1].color.rgb = c2; gs[1].position = 1.0
+    try: shape.fill.gradient_angle = angle
+    except Exception: pass
+    return shape
+
+
+def _grad_text_fill(textbox, c1, c2, ang=5400000):
+    """テキスト（全ラン）にグラデーション塗りを適用する。章扉の大番号など。
+    c1/c2 は6桁HEX（c1=上, c2=下）。ang は 60000分の1度（5400000=90°＝上→下）。"""
+    A = A_NS
+    for p in textbox.text_frame.paragraphs:
+        for r in p.runs:
+            rPr = r._r.get_or_add_rPr()
+            sf = rPr.find(f'{{{A}}}solidFill')
+            idx = list(rPr).index(sf) if sf is not None else 0
+            if sf is not None:
+                rPr.remove(sf)
+            grad = etree.Element(f'{{{A}}}gradFill')
+            gsLst = etree.SubElement(grad, f'{{{A}}}gsLst')
+            for pos, col in ((0, c1), (100000, c2)):
+                gs = etree.SubElement(gsLst, f'{{{A}}}gs'); gs.set('pos', str(pos))
+                etree.SubElement(gs, f'{{{A}}}srgbClr').set('val', col)
+            lin = etree.SubElement(grad, f'{{{A}}}lin')
+            lin.set('ang', str(ang)); lin.set('scaled', '1')
+            rPr.insert(idx, grad)
+    return textbox
 
 
 def grad_rect(slide, x, y, w, h, c1, c2, angle=90, radius=0.0):
@@ -900,7 +931,8 @@ def add_section_slide(prs, section_num, title, blank, subtitle=None, en=None):
 
     _cv_base_stage(s, red=True)
     num = f"{section_num:02d}"
-    _cv_txt(s, num, 0.42,0.10,4.72,2.12, 118, _CV["crimson"], _CV_SERIF, True, PP_ALIGN.LEFT, -3)
+    _numbox = _cv_txt(s, num, 0.42,0.10,4.72,2.12, 118, _CV["crimson"], _CV_SERIF, True, PP_ALIGN.LEFT, -3)
+    _grad_text_fill(_numbox, _CV["crimson"], _CV["crimson2"])  # D: 大番号をクリムゾン→深紅グラデ
     _cv_txt(s, num, 2.55,0.04,3.5,2.3, 110, _CV["black3"], _CV_SERIF, True, PP_ALIGN.LEFT, -3)
     _cv_ln(s, 0.58,2.48,2.35,0, _CV["crimson"], 100, 0.95)
     _cv_txt(s, title, 0.56,2.72,8.2,1.18, 40, _CV["white"], _CV_MIN, True, PP_ALIGN.LEFT, 0.2)
@@ -913,7 +945,7 @@ def add_section_slide(prs, section_num, title, blank, subtitle=None, en=None):
     _cv_grad_shape(s, MSO_SHAPE.PARALLELOGRAM, 9.18,0.48,1.35,5.45, _CV["crimson"], _CV["crimson3"], 55, _CV["crimson"], 45, 0.6, -8, op=90)
     _cv_shape(s, MSO_SHAPE.PARALLELOGRAM, 9.74,0.68,1.28,5.36, _CV["redDark"], 100, _CV["crimson"], 28, 0.5, -8)
     _cv_shape(s, MSO_SHAPE.PARALLELOGRAM, 9.98,0.88,0.78,4.95, _CV["black"], 80, _CV["white"], 20, 0.55, -8)
-    _cv_shape(s, MSO_SHAPE.PARALLELOGRAM, 10.44,0.58,0.92,5.62, _CV["crimson3"], 55, _CV["crimson"], 20, 0.4, -8)
+    _cv_grad_shape(s, MSO_SHAPE.PARALLELOGRAM, 10.44,0.58,0.92,5.62, _CV["crimson2"], _CV["crimson3"], 60, _CV["crimson"], 20, 0.4, -8, op=70)  # #7: 建築面もグラデ
     _cv_ln(s, 9.70,0.63,0.0,5.25, _CV["white"], 22, 0.45)
     _cv_ln(s, 10.48,0.67,0.0,5.15, _CV["crimson"], 65, 1.2)
     return s
@@ -1109,14 +1141,22 @@ def add_kpi_slide(prs, title, sub_message, kpis, blank,
         y = content_y + row * (card_h + row_gap)
         emph = bool(kpi.get("emphasis"))
 
-        # カード背景（枠線なし・淡い面）。強調カードはごく淡いクリムゾン地。
+        # カード背景（枠線なし）。強調カードは淡クリムゾンのグラデ地で“重要部分”を演出（#7）。
         card = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(x), Inches(y),
                                       Inches(card_w), Inches(card_h))
-        card.fill.solid()
-        card.fill.fore_color.rgb = RGBColor(0xFA, 0xF1, 0xF1) if emph else PALE_GRAY
-        card.line.fill.background()  # 枠線なし
+        if emph:
+            grad_fill(card, RGBColor(0xFD, 0xF4, 0xF4), RGBColor(0xF2, 0xDC, 0xDC), angle=45)
+        else:
+            card.fill.solid(); card.fill.fore_color.rgb = PALE_GRAY
+            card.line.fill.background()
+        try: card.shadow.inherit = False
+        except Exception: pass
 
-        # （カード上部の横長アクセント帯は廃止＝視覚ノイズ削減）
+        # 強調カードのみ左端にクリムゾン→明赤のグラデ・アクセントバー（赤9:1・視覚ノイズ最小）
+        if emph:
+            ab = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(x), Inches(y),
+                                        Inches(0.075), Inches(card_h))
+            grad_fill(ab, ACCENT, BRIGHT_RED, angle=90)
 
         # アイコン（Material Symbols をPNG化して右上に配置・配布先のフォント不要）
         if kpi.get("icon"):
@@ -1230,8 +1270,7 @@ def add_cards_slide(prs, title, sub_message, cards, blank,
         )
         bdy.fill.solid()
         bdy.fill.fore_color.rgb = LIGHT_GRAY
-        bdy.line.color.rgb = BORDER_GRAY
-        bdy.line.width = Emu(9525)
+        bdy.line.fill.background()   # （枠線削除）テキストオブジェクトの枠線は付けない
 
         txB = slide.shapes.add_textbox(Inches(x + 0.12), Inches(body_y + 0.1),
                                         Inches(card_w - 0.24), Inches(body_h - 0.2))
@@ -1316,8 +1355,7 @@ def add_process_slide(prs, title, sub_message, steps, blank,
         )
         bdy.fill.solid()
         bdy.fill.fore_color.rgb = LIGHT_GRAY
-        bdy.line.color.rgb = BORDER_GRAY
-        bdy.line.width = Emu(9525)
+        bdy.line.fill.background()   # （枠線削除）テキストオブジェクトの枠線は付けない
 
         txB = slide.shapes.add_textbox(Inches(0.5 + header_w + 0.25), Inches(sy + 0.1),
                                         Inches(body_w - 0.3), Inches(step_h - 0.2))
@@ -1357,7 +1395,7 @@ def add_stepup_slide(prs, title, sub_message, phases, blank,
     content_y = add_sub_message(slide, sub_message, y=sub_y)
 
     n = len(phases)
-    gap = 0.2
+    gap = 0.5            # カード間に右向き三角形2個を置くため広めに確保
     total_w = 12.3
     bar_w = (total_w - gap * (n - 1)) / n
     base_y = 6.5  # ボトムバー直上
@@ -1383,7 +1421,7 @@ def add_stepup_slide(prs, title, sub_message, phases, blank,
 
         txH = slide.shapes.add_textbox(Inches(x + 0.1), Inches(y + 0.05),
                                         Inches(bar_w - 0.2), Inches(header_h - 0.1))
-        set_text(txH.text_frame.paragraphs[0], phase["header"], Pt(14), WHITE, bold=True)
+        set_text(txH.text_frame.paragraphs[0], phase["header"], Pt(17), WHITE, bold=True)
         txH.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
 
         # ボディ部（下部、LIGHT_GRAY）
@@ -1395,8 +1433,7 @@ def add_stepup_slide(prs, title, sub_message, phases, blank,
         )
         bdy.fill.solid()
         bdy.fill.fore_color.rgb = LIGHT_GRAY
-        bdy.line.color.rgb = BORDER_GRAY
-        bdy.line.width = Emu(9525)
+        bdy.line.fill.background()   # （枠線削除）テキストオブジェクトの枠線は付けない
 
         txB = slide.shapes.add_textbox(Inches(x + 0.1), Inches(body_y + 0.1),
                                         Inches(bar_w - 0.2), Inches(body_h - 0.2))
@@ -1407,11 +1444,28 @@ def add_stepup_slide(prs, title, sub_message, phases, blank,
         if isinstance(body_text, list):
             for j, item in enumerate(body_text):
                 p = tf.paragraphs[0] if j == 0 else tf.add_paragraph()
-                add_rich_runs(p, f"・{item}", base_size=Pt(11), base_color=DARK_GRAY,
-                              bold_color=NAVY, line_spacing=1.3)
+                add_rich_runs(p, f"・{item}", base_size=Pt(13.5), base_color=DARK_GRAY,
+                              bold_color=NAVY, line_spacing=1.35)
         else:
-            add_rich_runs(tf.paragraphs[0], body_text, base_size=Pt(12),
-                          base_color=DARK_GRAY, bold_color=NAVY, line_spacing=1.3)
+            add_rich_runs(tf.paragraphs[0], body_text, base_size=Pt(14.5),
+                          base_color=DARK_GRAY, bold_color=NAVY, line_spacing=1.35)
+
+    # カード間に右向き二等辺三角形を2個ずつ置き、左→右の流れを表現
+    tw, th, tgap = 0.18, 0.12, 0.04
+    tri_cy = (base_y - max_h) + max_h / 2 - th / 2     # カードの縦中央
+    tri_color = RGBColor(0xC9, 0xCD, 0xD2)             # 薄いグレー
+    for i in range(n - 1):
+        gx0 = 0.5 + i * (bar_w + gap) + bar_w          # 直前カードの右端
+        gmid = gx0 + gap / 2.0
+        for ccx in (gmid - (th + tgap) / 2.0, gmid + (th + tgap) / 2.0):
+            tri = slide.shapes.add_shape(MSO_SHAPE.ISOSCELES_TRIANGLE,
+                                         Inches(ccx - tw / 2.0), Inches(tri_cy),
+                                         Inches(tw), Inches(th))
+            tri.rotation = 90                          # 時計回り90°＝頂点が右
+            tri.fill.solid(); tri.fill.fore_color.rgb = tri_color
+            tri.line.fill.background()
+            try: tri.shadow.inherit = False
+            except Exception: pass
 
     if source:
         add_source_label(slide, source)
@@ -1665,8 +1719,7 @@ def add_triangle_slide(prs, title, sub_message, elements, blank,
         )
         bdy.fill.solid()
         bdy.fill.fore_color.rgb = LIGHT_GRAY
-        bdy.line.color.rgb = BORDER_GRAY
-        bdy.line.width = Emu(9525)
+        bdy.line.fill.background()   # （枠線削除）テキストオブジェクトの枠線は付けない
 
         txB = slide.shapes.add_textbox(Inches(px + 0.15), Inches(py + 0.55),
                                         Inches(card_w - 0.3), Inches(card_h - 0.65))
@@ -2211,8 +2264,7 @@ def add_recommendation_slide(prs, title, sub_message, recommendations, blank,
         )
         card.fill.solid()
         card.fill.fore_color.rgb = LIGHT_GRAY
-        card.line.color.rgb = BORDER_GRAY
-        card.line.width = Emu(9525)
+        card.line.fill.background()   # （枠線削除）提言カードの枠線を撤去
 
         txBox_p = slide.shapes.add_textbox(Inches(1.0), Inches(y + 0.08), Inches(0.8), Inches(0.3))
         set_text(txBox_p.text_frame.paragraphs[0], f"[{rec.get('priority', '中')}]", Pt(10), p_color, bold=True)
@@ -2273,8 +2325,7 @@ def add_matrix_slide(prs, title, sub_message, quadrants, blank,
         )
         box.fill.solid()
         box.fill.fore_color.rgb = LIGHT_GRAY
-        box.line.color.rgb = BORDER_GRAY
-        box.line.width = Emu(9525)
+        box.line.fill.background()   # （枠線削除）2x2マトリクスの枠線を撤去
 
         txBox = slide.shapes.add_textbox(
             Inches(qx + 0.1), Inches(qy + 0.1),
@@ -2341,22 +2392,19 @@ def add_insight_slide(prs, title, sub_message, layers, blank,
     block_h = (avail_h - gap * (n - 1)) / n
     # （A1）固定13pt・行間1.3のまま、本文ボックスに収まる文字数を算出して切り詰める
     body_off = 0.27                # ラベル行ぶんのオフセット
-    body_w = CONTENT_W - 0.18
+    body_w = CONTENT_W
     body_h = block_h - body_off
     line_sp = 1.3
     _, _, body_cap = _text_capacity(body_w, body_h, 13, line_spacing=line_sp)
     y = content_y
     for lyr in layers:
-        # 左の細い赤バー
-        bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(MARGIN_L), Inches(y),
-                                     Emu(36576), Inches(block_h))
-        bar.fill.solid(); bar.fill.fore_color.rgb = ACCENT; bar.line.fill.background()
+        # （赤棒削減）左の赤バーは廃止。赤ラベル文字で各層を識別する
         # ラベル（赤・小・字間広め）
-        lb = slide.shapes.add_textbox(Inches(MARGIN_L + 0.18), Inches(y),
+        lb = slide.shapes.add_textbox(Inches(MARGIN_L), Inches(y),
                                       Inches(2.0), Inches(0.3))
         set_text(lb.text_frame.paragraphs[0], lyr.get("label", ""), Pt(11), ACCENT, bold=True)
         # 本文段落（墨・読みやすい行間）— 箱に収まる文字数に制限（フォントは縮めない）
-        body = slide.shapes.add_textbox(Inches(MARGIN_L + 0.18), Inches(y + body_off),
+        body = slide.shapes.add_textbox(Inches(MARGIN_L), Inches(y + body_off),
                                         Inches(body_w), Inches(body_h))
         tf = body.text_frame; tf.word_wrap = True; tf.auto_size = MSO_AUTO_SIZE.NONE
         # 考察は深く書きたい場合を優先: 切り詰めず全文表示（容量超過は注意喚起のみ・重なり許容）
@@ -3737,6 +3785,8 @@ def add_insight_tape(slide, text: str,
 #     left=0.9, bottom_y=chart_bottom, width=7.8)
 
 
+SHOW_CORNER_MARKS = False   # 設計判断: コーナーマークは廃止（ナビは左端の章ガイドに一本化）
+
 def add_corner_marks(slide,
                      slide_w_in: float = 13.33,
                      slide_h_in: float = 7.5,
@@ -3748,6 +3798,8 @@ def add_corner_marks(slide,
         leg    : L字の一辺の長さ（Inches）
         margin : スライド端からの内側オフセット（Inches）
     """
+    if not SHOW_CORNER_MARKS:   # 廃止: 既定では描かない（再有効化は SHOW_CORNER_MARKS=True）
+        return
     from pptx.util import Inches, Pt, Emu
     from pptx.dml.color import RGBColor
 
