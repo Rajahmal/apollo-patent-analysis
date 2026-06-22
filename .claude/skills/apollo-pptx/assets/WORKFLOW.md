@@ -133,6 +133,18 @@ _umap_points = [(float(r["umap_x"]), float(r["umap_y"]), r["cluster"]) for r in 
 - ※旧案（散布ドットのデータ・アズ・アート／黒地 Crimson Vector ステージ）は撤回。
   `add_title_slide(umap_points=, emerging_cids=)` の引数は後方互換で受けるが**未使用**。
 
+## 3.10 v6.24 仕上げ（赤バー削減・枠線撤去・ロードマップ矢印・ナビ整理）
+- **赤い縦バーの削減**: `add_sub_message` の左バーを**撤去**。`add_insight_slide`（考察4層）の左赤バーも**撤去**（赤ラベル文字で識別）。
+  カードへ機械的に赤バーを付けない。**残すのは KPI 強調カード等“必要なカードのみ”**（赤9:1）。
+- **サブメッセージ**: 先頭の `■` を**削除**、テキストを**上下中央寄せ**、フォントを**1段拡大（16.5pt）**、角丸維持。
+- **枠線の撤去**: 本文・補足のテキストオブジェクト枠線を全廃（`add_matrix_slide` の2x2／`add_cards_slide`／
+  `add_process_slide`／`add_stepup_slide`／`add_recommendation_slide` の `BORDER_GRAY` 枠を `line.fill.background()` に）。
+- **ロードマップ `add_stepup_slide`**: カード間に**右向き二等辺三角形を2個ずつ**（幅0.18・高さ0.12・時計回り90°・薄グレー・線なし）。
+  カード間隔を 0.2→0.5 に拡張。**本文/見出しのフォントを拡大**（見出し17pt・本文14.5pt）。
+- **コーナーマーク廃止**: `SHOW_CORNER_MARKS=False`（既定で非描画）。再有効化は同フラグを True に。
+- **左端の章ガイド復活**: `build_report` が `TOTAL_CHAPTERS` を 0/未設定なら 12 に設定（engine 既定0を setdefault では上書きできない不具合の修正）。
+- **グラデの拡張（#7）**: 章扉の建築面（`_cv_grad_shape`）と KPI 強調カード背景にもグラデを適用。
+
 ## 4. やってはいけないこと（再発防止）
 - **`deco(add_x(...))` でラップしない（v6.21〜）**→ `add_x(...)` を直接呼ぶ（二重括弧の閉じ忘れ防止＋自動マーク）。
 - **エンジンの自前再実装**（仕様書ブロックを手で写経し直す）→ 同梱 `apollo_pptx_engine.py` を exec で使う。
