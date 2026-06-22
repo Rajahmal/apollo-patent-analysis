@@ -303,6 +303,28 @@ def grad_fill(shape, c1, c2, angle=90):
     return shape
 
 
+def _grad_text_fill(textbox, c1, c2, ang=5400000):
+    """テキスト（全ラン）にグラデーション塗りを適用する。章扉の大番号など。
+    c1/c2 は6桁HEX（c1=上, c2=下）。ang は 60000分の1度（5400000=90°＝上→下）。"""
+    A = A_NS
+    for p in textbox.text_frame.paragraphs:
+        for r in p.runs:
+            rPr = r._r.get_or_add_rPr()
+            sf = rPr.find(f'{{{A}}}solidFill')
+            idx = list(rPr).index(sf) if sf is not None else 0
+            if sf is not None:
+                rPr.remove(sf)
+            grad = etree.Element(f'{{{A}}}gradFill')
+            gsLst = etree.SubElement(grad, f'{{{A}}}gsLst')
+            for pos, col in ((0, c1), (100000, c2)):
+                gs = etree.SubElement(gsLst, f'{{{A}}}gs'); gs.set('pos', str(pos))
+                etree.SubElement(gs, f'{{{A}}}srgbClr').set('val', col)
+            lin = etree.SubElement(grad, f'{{{A}}}lin')
+            lin.set('ang', str(ang)); lin.set('scaled', '1')
+            rPr.insert(idx, grad)
+    return textbox
+
+
 def grad_rect(slide, x, y, w, h, c1, c2, angle=90, radius=0.0):
     """グラデーション矩形（G1グラデの最小取り込み・影なし）。"""
     shp = slide.shapes.add_shape(
@@ -924,7 +946,8 @@ def add_section_slide(prs, section_num, title, blank, subtitle=None, en=None):
 
     _cv_base_stage(s, red=True)
     num = f"{section_num:02d}"
-    _cv_txt(s, num, 0.42,0.10,4.72,2.12, 118, _CV["crimson"], _CV_SERIF, True, PP_ALIGN.LEFT, -3)
+    _numbox = _cv_txt(s, num, 0.42,0.10,4.72,2.12, 118, _CV["crimson"], _CV_SERIF, True, PP_ALIGN.LEFT, -3)
+    _grad_text_fill(_numbox, _CV["crimson"], _CV["crimson2"])  # D: 大番号をクリムゾン→深紅グラデ
     _cv_txt(s, num, 2.55,0.04,3.5,2.3, 110, _CV["black3"], _CV_SERIF, True, PP_ALIGN.LEFT, -3)
     _cv_ln(s, 0.58,2.48,2.35,0, _CV["crimson"], 100, 0.95)
     _cv_txt(s, title, 0.56,2.72,8.2,1.18, 40, _CV["white"], _CV_MIN, True, PP_ALIGN.LEFT, 0.2)
