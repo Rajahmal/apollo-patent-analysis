@@ -852,22 +852,24 @@ def _cv_txt(s,t,x,y,w,h,size,col,font="Yu Gothic",bold=False,align=PP_ALIGN.LEFT
         if spc: rPr.set('spc',str(int(spc*100)))
         if k<len(lines)-1: etree.SubElement(p._p,f'{{{A_NS}}}br')
     return tb
-def _cv_base_stage(s, red=True):
-    """黒の舞台＋スキャンライン＋右の赤い建築面（cinematic base）。"""
+def _cv_base_stage(s, red=True, acc=None):
+    """黒の舞台＋スキャンライン＋右の建築面（cinematic base）。
+    acc=章ごとの差し色セット（赤/紫）。建築面は基本グラデで描く。"""
+    acc = acc or _CV
     s.background.fill.solid(); s.background.fill.fore_color.rgb=_cvC(_CV["black"])
     for i in range(18):
         _cv_rect(s,i*0.42,0,0.43,7.5, _CV["black"] if i<7 else _CV["black3"], 100 if i<7 else max(0,30-i))
     if red:
-        _cv_shape(s,MSO_SHAPE.PARALLELOGRAM,9.28,-0.15,4.45,7.85,_CV["crimson"],88,_CV["crimson"],8,0.2,-11)
-        _cv_shape(s,MSO_SHAPE.PARALLELOGRAM,10.15,-0.35,3.40,7.95,_CV["crimson2"],78,_CV["crimson"],16,0.35,-11)
-        _cv_shape(s,MSO_SHAPE.ISOSCELES_TRIANGLE,10.38,0.10,2.55,5.95,_CV["crimson3"],38,_CV["crimson"],18,0.35,0)
-        _cv_shape(s,MSO_SHAPE.ISOSCELES_TRIANGLE,11.02,0.55,1.65,4.70,_CV["black"],22,_CV["crimson"],30,0.3,0)
+        _cv_grad_shape(s,MSO_SHAPE.PARALLELOGRAM,9.28,-0.15,4.45,7.85, acc["crimson"], acc["crimson3"], 50, acc["crimson"],8,0.2,-11, op=88)
+        _cv_grad_shape(s,MSO_SHAPE.PARALLELOGRAM,10.15,-0.35,3.40,7.95, acc["crimson2"], acc["crimson3"], 62, acc["crimson"],16,0.35,-11, op=80)
+        _cv_grad_shape(s,MSO_SHAPE.ISOSCELES_TRIANGLE,10.38,0.10,2.55,5.95, acc["crimson"], acc["crimson3"], 70, acc["crimson"],18,0.35,0, op=48)
+        _cv_shape(s,MSO_SHAPE.ISOSCELES_TRIANGLE,11.02,0.55,1.65,4.70,_CV["black"],22, acc["crimson"],30,0.3,0)
         _cv_shape(s,MSO_SHAPE.PARALLELOGRAM,8.05,0.0,1.85,7.7,_CV["black"],66,_CV["white"],12,0.15,-17)
     _cv_ln(s,8.0,-0.1,-2.4,7.7,_CV["white"],16,0.4)
-    _cv_ln(s,9.95,-0.2,-2.0,7.8,_CV["crimson"],18,0.6)
+    _cv_ln(s,9.95,-0.2,-2.0,7.8, acc["crimson"],18,0.6)
     _cv_ln(s,12.65,0.0,-4.3,7.55,_CV["white"],22,0.45)
-    for i in range(24): _cv_ln(s,9.10+i*0.13,0.0,0,7.5,_CV["crimson"],max(4,18-i),0.25)
-    _cv_shape(s,MSO_SHAPE.TRAPEZOID,6.25,6.46,3.8,0.26,_CV["crimson"],15,_CV["crimson"],10,0.15,0)
+    for i in range(24): _cv_ln(s,9.10+i*0.13,0.0,0,7.5, acc["crimson"],max(4,18-i),0.25)
+    _cv_shape(s,MSO_SHAPE.TRAPEZOID,6.25,6.46,3.8,0.26, acc["crimson"],15, acc["crimson"],10,0.15,0)
 CV_BG_PATH = ""
 CV_BG_LIGHT_PATH = ""   # v16 暗赤背景画像のパス（build側で設定）。空なら暗色ベタで代替。
 def _hide_master(slide):
@@ -920,34 +922,47 @@ def _cv_insight_box(s,idx,title,body,x,y,w,h):
     _cv_txt(s,body,x+0.86,y+0.62,w-1.12,h-0.74,8.6,_CV["ivory"],_CV_GO,False)
 
 
+def _chapter_accent(section_num, total):
+    """章ごとの差し色セット: 赤→紫→赤→紫…。最初(1)と最後(total)は強制で赤。
+    クリムゾンをメインに保ちつつ、偶数章だけ紫系に差し替える（飽き防止）。"""
+    is_purple = (section_num % 2 == 0) and section_num != 1 and section_num != int(total or 0)
+    if not is_purple:
+        return _CV
+    acc = dict(_CV)
+    acc.update({"crimson": "7E22A8", "crimson2": "4C1577",
+                "crimson3": "26093F", "redDark": "140324"})  # 紫ランプ（赤と同じ深度構成）
+    return acc
+
+
 def add_section_slide(prs, section_num, title, blank, subtitle=None, en=None):
-    """章扉（Crimson Vector V11）：黒の舞台＋巨大クリムゾン番号＋ゴースト＋明朝大見出し＋
-    右の赤い建築オブジェ。画像なし・全てベクター。CURRENT_CHAPTER を更新する。"""
+    """章扉（Crimson Vector V11）：黒の舞台＋巨大番号＋ゴースト＋明朝大見出し＋
+    右の建築オブジェ（基本グラデ）。差し色は章ごとに赤/紫。CURRENT_CHAPTER を更新する。"""
     global CURRENT_CHAPTER
     CURRENT_CHAPTER = section_num
     _PENDING_SECTION[0] = section_num
     s = prs.slides.add_slide(blank)
     _hide_master(s)
 
-    _cv_base_stage(s, red=True)
+    acc = _chapter_accent(section_num, TOTAL_CHAPTERS)   # 赤→紫→赤→紫（最初/最後は赤固定）
+    _cv_base_stage(s, red=True, acc=acc)
     num = f"{section_num:02d}"
-    _numbox = _cv_txt(s, num, 0.42,0.10,4.72,2.12, 118, _CV["crimson"], _CV_SERIF, True, PP_ALIGN.LEFT, -3)
-    _grad_text_fill(_numbox, _CV["crimson"], _CV["crimson2"])  # D: 大番号をクリムゾン→深紅グラデ
+    _numbox = _cv_txt(s, num, 0.42,0.10,4.72,2.12, 118, acc["crimson"], _CV_SERIF, True, PP_ALIGN.LEFT, -3)
+    _grad_text_fill(_numbox, acc["crimson"], acc["crimson2"])  # 大番号グラデ（章の差し色）
     _cv_txt(s, num, 2.55,0.04,3.5,2.3, 110, _CV["black3"], _CV_SERIF, True, PP_ALIGN.LEFT, -3)
-    _cv_ln(s, 0.58,2.48,2.35,0, _CV["crimson"], 100, 0.95)
+    _cv_ln(s, 0.58,2.48,2.35,0, acc["crimson"], 100, 0.95)
     _cv_txt(s, title, 0.56,2.72,8.2,1.18, 40, _CV["white"], _CV_MIN, True, PP_ALIGN.LEFT, 0.2)
     if subtitle:
         _cv_txt(s, "/  "+subtitle, 0.60,3.90,8.2,0.5, 14, _CV["white"], _CV_MIN, True)
     _cv_txt(s, f"SECTION {section_num:02d}", 0.62,4.70,4.2,0.3, 8, _CV["gray"], _CV_GO, False, PP_ALIGN.LEFT, 2.0)
     if en:
         _cv_txt(s, en, 0.62,5.04,4.4,0.6, 7.5, _CV["gray"], _CV_GO, False, PP_ALIGN.LEFT, 1.2)
-    # 右の建築オブジェ（斜めパラレログラムの重ね＋細線）
-    _cv_grad_shape(s, MSO_SHAPE.PARALLELOGRAM, 9.18,0.48,1.35,5.45, _CV["crimson"], _CV["crimson3"], 55, _CV["crimson"], 45, 0.6, -8, op=90)
-    _cv_shape(s, MSO_SHAPE.PARALLELOGRAM, 9.74,0.68,1.28,5.36, _CV["redDark"], 100, _CV["crimson"], 28, 0.5, -8)
+    # 右の建築オブジェ（基本グラデ：深→明のランプで立体感）
+    _cv_grad_shape(s, MSO_SHAPE.PARALLELOGRAM, 9.18,0.48,1.35,5.45, acc["crimson"], acc["crimson3"], 55, acc["crimson"], 45, 0.6, -8, op=90)
+    _cv_grad_shape(s, MSO_SHAPE.PARALLELOGRAM, 9.74,0.68,1.28,5.36, acc["crimson2"], acc["redDark"], 50, acc["crimson"], 28, 0.5, -8, op=100)
     _cv_shape(s, MSO_SHAPE.PARALLELOGRAM, 9.98,0.88,0.78,4.95, _CV["black"], 80, _CV["white"], 20, 0.55, -8)
-    _cv_grad_shape(s, MSO_SHAPE.PARALLELOGRAM, 10.44,0.58,0.92,5.62, _CV["crimson2"], _CV["crimson3"], 60, _CV["crimson"], 20, 0.4, -8, op=70)  # #7: 建築面もグラデ
+    _cv_grad_shape(s, MSO_SHAPE.PARALLELOGRAM, 10.44,0.58,0.92,5.62, acc["crimson2"], acc["crimson3"], 60, acc["crimson"], 20, 0.4, -8, op=72)
     _cv_ln(s, 9.70,0.63,0.0,5.25, _CV["white"], 22, 0.45)
-    _cv_ln(s, 10.48,0.67,0.0,5.15, _CV["crimson"], 65, 1.2)
+    _cv_ln(s, 10.48,0.67,0.0,5.15, acc["crimson"], 65, 1.2)
     return s
 
 def add_chart_text_slide(prs, title, sub_message, image_path, annotations, blank,
