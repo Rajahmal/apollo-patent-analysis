@@ -962,23 +962,24 @@ def add_section_slide(prs, section_num, title, blank, subtitle=None, en=None):
     acc = _apply_chapter_theme(section_num, TOTAL_CHAPTERS)   # 章扉＋以降の本文の差し色を切替
     _cv_base_stage(s, red=True, acc=acc)
     num = f"{section_num:02d}"
-    _numbox = _cv_txt(s, num, 0.42,0.10,4.72,2.12, 118, acc["crimson"], _CV_SERIF, True, PP_ALIGN.LEFT, -3)
+    # メイン数字（2倍サイズの巨大番号＝章扉の主役）
+    _numbox = _cv_txt(s, num, 0.40,-0.05,9.4,3.55, 236, acc["crimson"], _CV_SERIF, True, PP_ALIGN.LEFT, -4)
     _grad_text_fill(_numbox, acc["crimson"], acc["crimson2"])  # 大番号グラデ（章の差し色）
-    _cv_txt(s, num, 2.55,0.04,3.5,2.3, 110, _CV["black3"], _CV_SERIF, True, PP_ALIGN.LEFT, -3)
-    _cv_ln(s, 0.58,2.48,2.35,0, acc["crimson"], 100, 0.95)
-    _cv_txt(s, title, 0.56,2.72,8.2,1.18, 40, _CV["white"], _CV_MIN, True, PP_ALIGN.LEFT, 0.2)
+    _cv_txt(s, num, 3.55,-0.15,6.2,3.7, 220, _CV["black3"], _CV_SERIF, True, PP_ALIGN.LEFT, -4)
+    _cv_ln(s, 0.58,3.02,2.35,0, acc["crimson"], 100, 0.95)
+    _cv_txt(s, title, 0.56,3.26,8.2,1.18, 40, _CV["white"], _CV_MIN, True, PP_ALIGN.LEFT, 0.2)
     if subtitle:
-        _cv_txt(s, "/  "+subtitle, 0.60,3.90,8.2,0.5, 14, _CV["white"], _CV_MIN, True)
-    _cv_txt(s, f"SECTION {section_num:02d}", 0.62,4.70,4.2,0.3, 8, _CV["gray"], _CV_GO, False, PP_ALIGN.LEFT, 2.0)
+        _cv_txt(s, "/  "+subtitle, 0.60,4.42,8.2,0.5, 14, _CV["white"], _CV_MIN, True)
+    _cv_txt(s, f"SECTION {section_num:02d}", 0.62,5.18,4.2,0.3, 8, _CV["gray"], _CV_GO, False, PP_ALIGN.LEFT, 2.0)
     if en:
-        _cv_txt(s, en, 0.62,5.04,4.4,0.6, 7.5, _CV["gray"], _CV_GO, False, PP_ALIGN.LEFT, 1.2)
-    # 右の建築オブジェ（基本グラデ：深→明のランプで立体感）
-    _cv_grad_shape(s, MSO_SHAPE.PARALLELOGRAM, 9.18,0.48,1.35,5.45, acc["crimson"], acc["crimson3"], 55, acc["crimson"], 45, 0.6, -8, op=90)
-    _cv_grad_shape(s, MSO_SHAPE.PARALLELOGRAM, 9.74,0.68,1.28,5.36, acc["crimson2"], acc["redDark"], 50, acc["crimson"], 28, 0.5, -8, op=100)
-    _cv_shape(s, MSO_SHAPE.PARALLELOGRAM, 9.98,0.88,0.78,4.95, _CV["black"], 80, _CV["white"], 20, 0.55, -8)
-    _cv_grad_shape(s, MSO_SHAPE.PARALLELOGRAM, 10.44,0.58,0.92,5.62, acc["crimson2"], acc["crimson3"], 60, acc["crimson"], 20, 0.4, -8, op=72)
-    _cv_ln(s, 9.70,0.63,0.0,5.25, _CV["white"], 22, 0.45)
-    _cv_ln(s, 10.48,0.67,0.0,5.15, acc["crimson"], 65, 1.2)
+        _cv_txt(s, en, 0.62,5.52,4.4,0.6, 7.5, _CV["gray"], _CV_GO, False, PP_ALIGN.LEFT, 1.2)
+    # 右の建築オブジェ（横にずらし＋透明度/角度に変化を付けてメリハリを出す）
+    _cv_grad_shape(s, MSO_SHAPE.PARALLELOGRAM, 8.70,0.25,1.45,6.30, acc["crimson"], acc["crimson3"], 52, acc["crimson"], 40, 0.6, -15, op=94)
+    _cv_grad_shape(s, MSO_SHAPE.PARALLELOGRAM, 9.98,1.15,1.05,4.85, acc["crimson2"], acc["redDark"], 46, acc["crimson"], 22, 0.5, -3, op=64)
+    _cv_shape(s, MSO_SHAPE.PARALLELOGRAM, 10.62,0.50,0.60,6.10, _CV["black"], 70, _CV["white"], 16, 0.55, -11)
+    _cv_grad_shape(s, MSO_SHAPE.PARALLELOGRAM, 11.18,1.45,1.00,4.40, acc["crimson"], acc["crimson3"], 66, acc["crimson"], 16, 0.4, 2, op=40)
+    _cv_ln(s, 9.45,0.40,0.0,5.7, _CV["white"], 20, 0.45)
+    _cv_ln(s, 11.55,1.10,0.0,4.6, acc["crimson"], 60, 1.2)
     return s
 
 def add_chart_text_slide(prs, title, sub_message, image_path, annotations, blank,
@@ -3165,57 +3166,64 @@ def add_invention_zone_slide(prs, zone, blank, page_num=None):
     else:
         ctop = sub_y + 0.12
     ctop = max(ctop, 1.56)
-    cph = 3.72 - ctop
-    # 想定独立請求項案（白パネル＋赤枠・主役）
-    cp = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.9), Inches(ctop), Inches(11.73), Inches(cph))
-    cp.fill.solid(); cp.fill.fore_color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-    cp.line.color.rgb = ACCENT; cp.line.width = Pt(1.4)
-    set_text(s.shapes.add_textbox(Inches(1.14), Inches(ctop + 0.16), Inches(4.0), Inches(0.3)).text_frame.paragraphs[0],
-             "想定独立請求項案", Pt(13), ACCENT, bold=True)
-    cb = s.shapes.add_textbox(Inches(1.14), Inches(ctop + 0.50), Inches(11.25), Inches(cph - 0.6))
-    cbt = cb.text_frame; cbt.word_wrap = True; cbt.auto_size = MSO_AUTO_SIZE.NONE
-    add_rich_runs(cbt.paragraphs[0], zone.get("claimDraft", ""), base_size=Pt(15.5), base_color=INK, bold_color=INK, line_spacing=1.32)
-    # 発明のポイント（左）
-    ix, iy, iw, ih = 0.9, 3.80, 5.35, 2.46
+    # レイアウト: 主役の請求項パネルを縦に拡大／ポイント・先行技術を下げる／ロジックは極小・半分の高さ
+    CLAIM_BOT = 4.35
+    cph = CLAIM_BOT - ctop
+    iy, ih = 4.48, 2.06
+    ly, lh = 6.60, 0.30
+
+    # 発明のポイント（左・下方へ移動・コンパクト）
+    ix, iw = 0.9, 5.35
     p1 = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(ix), Inches(iy), Inches(iw), Inches(ih))
     p1.fill.solid(); p1.fill.fore_color.rgb = PALE_GRAY; p1.line.fill.background()
-    set_text(s.shapes.add_textbox(Inches(ix + 0.2), Inches(iy + 0.14), Inches(3.0), Inches(0.28)).text_frame.paragraphs[0],
-             "発明のポイント", Pt(12.5), ACCENT, bold=True)
-    set_text(s.shapes.add_textbox(Inches(ix + 0.2), Inches(iy + 0.5), Inches(1.4), Inches(0.22)).text_frame.paragraphs[0],
-             "解決課題", Pt(10.5), MEDIUM_GRAY, bold=True)
-    a = s.shapes.add_textbox(Inches(ix + 0.2), Inches(iy + 0.74), Inches(iw - 0.4), Inches(0.7)); a.text_frame.word_wrap = True
-    add_rich_runs(a.text_frame.paragraphs[0], zone.get("problem", ""), base_size=Pt(11.5), base_color=DARK_GRAY, bold_color=INK, line_spacing=1.3)
-    set_text(s.shapes.add_textbox(Inches(ix + 0.2), Inches(iy + 1.46), Inches(1.4), Inches(0.22)).text_frame.paragraphs[0],
-             "発明の要点", Pt(10.5), MEDIUM_GRAY, bold=True)
-    b = s.shapes.add_textbox(Inches(ix + 0.2), Inches(iy + 1.70), Inches(iw - 0.4), Inches(ih - 1.8)); b.text_frame.word_wrap = True
-    add_rich_runs(b.text_frame.paragraphs[0], zone.get("inventionPoint", ""), base_size=Pt(11.5), base_color=DARK_GRAY, bold_color=INK, line_spacing=1.3)
+    set_text(s.shapes.add_textbox(Inches(ix + 0.2), Inches(iy + 0.12), Inches(3.0), Inches(0.26)).text_frame.paragraphs[0],
+             "発明のポイント", Pt(12), ACCENT, bold=True)
+    set_text(s.shapes.add_textbox(Inches(ix + 0.2), Inches(iy + 0.44), Inches(1.4), Inches(0.2)).text_frame.paragraphs[0],
+             "解決課題", Pt(10), MEDIUM_GRAY, bold=True)
+    a = s.shapes.add_textbox(Inches(ix + 0.2), Inches(iy + 0.66), Inches(iw - 0.4), Inches(0.58)); a.text_frame.word_wrap = True; a.text_frame.auto_size = MSO_AUTO_SIZE.NONE
+    add_rich_runs(a.text_frame.paragraphs[0], zone.get("problem", ""), base_size=Pt(10), base_color=DARK_GRAY, bold_color=INK, line_spacing=1.22)
+    set_text(s.shapes.add_textbox(Inches(ix + 0.2), Inches(iy + 1.26), Inches(1.4), Inches(0.2)).text_frame.paragraphs[0],
+             "発明の要点", Pt(10), MEDIUM_GRAY, bold=True)
+    b = s.shapes.add_textbox(Inches(ix + 0.2), Inches(iy + 1.48), Inches(iw - 0.4), Inches(ih - 1.56)); b.text_frame.word_wrap = True; b.text_frame.auto_size = MSO_AUTO_SIZE.NONE
+    add_rich_runs(b.text_frame.paragraphs[0], zone.get("inventionPoint", ""), base_size=Pt(10), base_color=DARK_GRAY, bold_color=INK, line_spacing=1.22)
     # 先行技術（右・クレーム1全文）
     pa = zone.get("priorArt", {})
     rx, rw = 6.42, 6.21
     p2 = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(rx), Inches(iy), Inches(rw), Inches(ih))
     p2.fill.solid(); p2.fill.fore_color.rgb = PALE_GRAY; p2.line.fill.background()
-    set_text(s.shapes.add_textbox(Inches(rx + 0.2), Inches(iy + 0.14), Inches(3.0), Inches(0.28)).text_frame.paragraphs[0],
-             "先行技術", Pt(12.5), ACCENT, bold=True)
-    hd = s.shapes.add_textbox(Inches(rx + 0.2), Inches(iy + 0.5), Inches(rw - 0.4), Inches(0.28))
+    set_text(s.shapes.add_textbox(Inches(rx + 0.2), Inches(iy + 0.12), Inches(3.0), Inches(0.26)).text_frame.paragraphs[0],
+             "先行技術", Pt(12), ACCENT, bold=True)
+    hd = s.shapes.add_textbox(Inches(rx + 0.2), Inches(iy + 0.44), Inches(rw - 0.4), Inches(0.26))
     hp = hd.text_frame.paragraphs[0]
-    r1 = hp.add_run(); r1.text = pa.get("number", "") + "  "; r1.font.size = Pt(12); r1.font.bold = True; r1.font.color.rgb = INK; _apply_font(r1)
-    r2 = hp.add_run(); r2.text = "／ " + pa.get("applicant", ""); r2.font.size = Pt(11); r2.font.color.rgb = MEDIUM_GRAY; _apply_font(r2)
-    set_text(s.shapes.add_textbox(Inches(rx + 0.2), Inches(iy + 0.82), Inches(2.0), Inches(0.22)).text_frame.paragraphs[0],
-             "クレーム1（全文）", Pt(10.5), MEDIUM_GRAY, bold=True)
-    cl = s.shapes.add_textbox(Inches(rx + 0.2), Inches(iy + 1.06), Inches(rw - 0.4), Inches(ih - 1.18))
+    r1 = hp.add_run(); r1.text = pa.get("number", "") + "  "; r1.font.size = Pt(11); r1.font.bold = True; r1.font.color.rgb = INK; _apply_font(r1)
+    r2 = hp.add_run(); r2.text = "／ " + pa.get("applicant", ""); r2.font.size = Pt(10); r2.font.color.rgb = MEDIUM_GRAY; _apply_font(r2)
+    set_text(s.shapes.add_textbox(Inches(rx + 0.2), Inches(iy + 0.74), Inches(2.4), Inches(0.2)).text_frame.paragraphs[0],
+             "クレーム1（全文）", Pt(9.5), MEDIUM_GRAY, bold=True)
+    cl = s.shapes.add_textbox(Inches(rx + 0.2), Inches(iy + 0.98), Inches(rw - 0.4), Inches(ih - 1.06))
     clt = cl.text_frame; clt.word_wrap = True; clt.auto_size = MSO_AUTO_SIZE.NONE
-    add_rich_runs(clt.paragraphs[0], pa.get("claim", ""), base_size=Pt(8.6), base_color=DARK_GRAY, bold_color=INK, line_spacing=1.22)
-    # 請求項作成ロジック（下・薄ストリップ）
-    lp = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.9), Inches(6.40), Inches(11.73), Inches(0.58))
+    add_rich_runs(clt.paragraphs[0], pa.get("claim", ""), base_size=Pt(7.8), base_color=DARK_GRAY, bold_color=INK, line_spacing=1.16)
+    # 請求項作成ロジック（最下部・極小フォント・高さ半分）
+    lp = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.9), Inches(ly), Inches(11.73), Inches(lh))
     lp.fill.solid(); lp.fill.fore_color.rgb = PALE_GRAY; lp.line.fill.background()
-    set_text(s.shapes.add_textbox(Inches(1.08), Inches(6.55), Inches(2.6), Inches(0.24)).text_frame.paragraphs[0],
-             "請求項作成ロジック", Pt(11.5), ACCENT, bold=True)
-    steps = zone.get("logicSteps", []); n = max(1, len(steps)); startX = 0.9 + 2.66; stepW = (11.73 - 2.9) / n
+    set_text(s.shapes.add_textbox(Inches(1.04), Inches(ly + 0.05), Inches(2.1), Inches(0.2)).text_frame.paragraphs[0],
+             "請求項作成ロジック", Pt(9), ACCENT, bold=True)
+    steps = zone.get("logicSteps", []); n = max(1, len(steps)); startX = 0.9 + 2.20; stepW = (11.73 - 2.4) / n
     for i, stp in enumerate(steps):
         sx = startX + i * stepW
-        set_text(s.shapes.add_textbox(Inches(sx), Inches(6.55), Inches(0.25), Inches(0.2)).text_frame.paragraphs[0], str(i + 1), Pt(10.5), ACCENT, bold=True)
-        t2 = s.shapes.add_textbox(Inches(sx + 0.24), Inches(6.52), Inches(stepW - 0.32), Inches(0.36)); t2.text_frame.word_wrap = True
-        set_text(t2.text_frame.paragraphs[0], stp, Pt(10.5), DARK_GRAY, bold=True, line_spacing=1.0)
+        set_text(s.shapes.add_textbox(Inches(sx), Inches(ly + 0.05), Inches(0.22), Inches(0.18)).text_frame.paragraphs[0], str(i + 1), Pt(8), ACCENT, bold=True)
+        t2 = s.shapes.add_textbox(Inches(sx + 0.20), Inches(ly + 0.03), Inches(stepW - 0.28), Inches(lh - 0.04)); t2.text_frame.word_wrap = True; t2.text_frame.auto_size = MSO_AUTO_SIZE.NONE
+        set_text(t2.text_frame.paragraphs[0], stp, Pt(8), DARK_GRAY, bold=True, line_spacing=0.95)
+    # 想定独立請求項案（白パネル＋赤枠・主役）★最後に描画して最前面へ
+    cp = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.9), Inches(ctop), Inches(11.73), Inches(cph))
+    cp.fill.solid(); cp.fill.fore_color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+    cp.line.color.rgb = ACCENT; cp.line.width = Pt(1.6)
+    try: cp.shadow.inherit = False
+    except Exception: pass
+    set_text(s.shapes.add_textbox(Inches(1.14), Inches(ctop + 0.16), Inches(4.0), Inches(0.3)).text_frame.paragraphs[0],
+             "想定独立請求項案", Pt(13), ACCENT, bold=True)
+    cb = s.shapes.add_textbox(Inches(1.14), Inches(ctop + 0.52), Inches(11.25), Inches(cph - 0.64))
+    cbt = cb.text_frame; cbt.word_wrap = True; cbt.auto_size = MSO_AUTO_SIZE.NONE
+    add_rich_runs(cbt.paragraphs[0], zone.get("claimDraft", ""), base_size=Pt(15.5), base_color=INK, bold_color=INK, line_spacing=1.34)
     _record_section_page(page_num)
     if page_num is not None:
         set_text(s.shapes.add_textbox(Inches(12.45), Inches(7.02), Inches(0.55), Inches(0.25)).text_frame.paragraphs[0], str(page_num), Pt(10), MEDIUM_GRAY)
