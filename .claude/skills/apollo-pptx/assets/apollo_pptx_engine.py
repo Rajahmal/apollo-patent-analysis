@@ -922,16 +922,32 @@ def _cv_insight_box(s,idx,title,body,x,y,w,h):
     _cv_txt(s,body,x+0.86,y+0.62,w-1.12,h-0.74,8.6,_CV["ivory"],_CV_GO,False)
 
 
-def _chapter_accent(section_num, total):
-    """章ごとの差し色セット: 赤→紫→赤→紫…。最初(1)と最後(total)は強制で赤。
-    クリムゾンをメインに保ちつつ、偶数章だけ紫系に差し替える（飽き防止）。"""
+def _tint(rgb, f):
+    """色を白へ f(0-1) だけ寄せた淡色を返す（KPI強調カード地など）。"""
+    return RGBColor(int(rgb[0] + (255 - rgb[0]) * f),
+                    int(rgb[1] + (255 - rgb[1]) * f),
+                    int(rgb[2] + (255 - rgb[2]) * f))
+
+
+def _apply_chapter_theme(section_num, total):
+    """章ごとに差し色を切り替える: 赤→紫→赤→紫（最初(1)/最後(total)は赤固定）。
+    本文が参照する ACCENT / BRIGHT_RED / CRIMSON_DEEP（モジュール全体で共有）も切り替えるため、
+    紫章は章扉だけでなく**本文のテーマカラーも紫**（表ヘッダ・KPI強調・考察ラベル・章ラベル等）になる。
+    戻り値は章扉の建築面用 hex セット。"""
+    global ACCENT, BRIGHT_RED, CRIMSON_DEEP
     is_purple = (section_num % 2 == 0) and section_num != 1 and section_num != int(total or 0)
-    if not is_purple:
-        return _CV
-    acc = dict(_CV)
-    acc.update({"crimson": "7E22A8", "crimson2": "4C1577",
-                "crimson3": "26093F", "redDark": "140324"})  # 紫ランプ（赤と同じ深度構成）
-    return acc
+    if is_purple:
+        ACCENT = RGBColor(0xA1, 0x2F, 0xC4)        # 明るめの紫（テーマカラー）
+        BRIGHT_RED = RGBColor(0xC3, 0x55, 0xE0)    # グラデ明端（紫）
+        CRIMSON_DEEP = RGBColor(0x5E, 0x1C, 0x8A)  # グラデ深端（紫）
+        acc = dict(_CV)
+        acc.update({"crimson": "A12FC4", "crimson2": "5E1C8A",
+                    "crimson3": "2E0B4A", "redDark": "180428"})
+        return acc
+    ACCENT = RGBColor(0xC5, 0x12, 0x12)            # 既定＝クリムゾン（メインカラー）
+    BRIGHT_RED = RGBColor(0xF4, 0x33, 0x33)
+    CRIMSON_DEEP = RGBColor(0x8E, 0x00, 0x14)
+    return _CV
 
 
 def add_section_slide(prs, section_num, title, blank, subtitle=None, en=None):
@@ -943,7 +959,7 @@ def add_section_slide(prs, section_num, title, blank, subtitle=None, en=None):
     s = prs.slides.add_slide(blank)
     _hide_master(s)
 
-    acc = _chapter_accent(section_num, TOTAL_CHAPTERS)   # 赤→紫→赤→紫（最初/最後は赤固定）
+    acc = _apply_chapter_theme(section_num, TOTAL_CHAPTERS)   # 章扉＋以降の本文の差し色を切替
     _cv_base_stage(s, red=True, acc=acc)
     num = f"{section_num:02d}"
     _numbox = _cv_txt(s, num, 0.42,0.10,4.72,2.12, 118, acc["crimson"], _CV_SERIF, True, PP_ALIGN.LEFT, -3)
@@ -1160,7 +1176,7 @@ def add_kpi_slide(prs, title, sub_message, kpis, blank,
         card = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(x), Inches(y),
                                       Inches(card_w), Inches(card_h))
         if emph:
-            grad_fill(card, RGBColor(0xFD, 0xF4, 0xF4), RGBColor(0xF2, 0xDC, 0xDC), angle=45)
+            grad_fill(card, _tint(ACCENT, 0.93), _tint(ACCENT, 0.82), angle=45)  # テーマ色の淡地
         else:
             card.fill.solid(); card.fill.fore_color.rgb = PALE_GRAY
             card.line.fill.background()
@@ -1175,7 +1191,7 @@ def add_kpi_slide(prs, title, sub_message, kpis, blank,
 
         # アイコン（Material Symbols をPNG化して右上に配置・配布先のフォント不要）
         if kpi.get("icon"):
-            icol = (0xC5, 0x12, 0x12) if emph else (0x68, 0x68, 0x68)
+            icol = (ACCENT[0], ACCENT[1], ACCENT[2]) if emph else (0x68, 0x68, 0x68)
             ipath = material_icon_png(kpi["icon"], icol, px=200)
             isz = 0.42
             if ipath:
