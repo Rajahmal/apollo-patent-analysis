@@ -962,24 +962,24 @@ def add_section_slide(prs, section_num, title, blank, subtitle=None, en=None):
     acc = _apply_chapter_theme(section_num, TOTAL_CHAPTERS)   # 章扉＋以降の本文の差し色を切替
     _cv_base_stage(s, red=True, acc=acc)
     num = f"{section_num:02d}"
-    # メイン数字（2倍サイズの巨大番号＝章扉の主役）
-    _numbox = _cv_txt(s, num, 0.40,-0.05,9.4,3.55, 236, acc["crimson"], _CV_SERIF, True, PP_ALIGN.LEFT, -4)
+    # メイン数字（巨大番号＝主役）。ゴーストは背面＝シャドウとして本体に約2/3重ねる（右下へオフセット）
+    _cv_txt(s, num, 1.40,-0.30,6.2,3.6, 220, _CV["black3"], _CV_SERIF, True, PP_ALIGN.LEFT, -4)   # ゴースト（背面）
+    _numbox = _cv_txt(s, num, 0.40,-0.55,9.4,3.6, 236, acc["crimson"], _CV_SERIF, True, PP_ALIGN.LEFT, -4)  # 本体（前面）
     _grad_text_fill(_numbox, acc["crimson"], acc["crimson2"])  # 大番号グラデ（章の差し色）
-    _cv_txt(s, num, 3.55,-0.15,6.2,3.7, 220, _CV["black3"], _CV_SERIF, True, PP_ALIGN.LEFT, -4)
-    _cv_ln(s, 0.58,3.02,2.35,0, acc["crimson"], 100, 0.95)
-    _cv_txt(s, title, 0.56,3.26,8.2,1.18, 40, _CV["white"], _CV_MIN, True, PP_ALIGN.LEFT, 0.2)
+    _cv_ln(s, 0.58,2.85,2.35,0, acc["crimson"], 100, 0.95)   # 横線は数字の下（重ならない位置）へ
+    _cv_txt(s, title, 0.56,3.08,8.2,1.18, 40, _CV["white"], _CV_MIN, True, PP_ALIGN.LEFT, 0.2)
     if subtitle:
-        _cv_txt(s, "/  "+subtitle, 0.60,4.42,8.2,0.5, 14, _CV["white"], _CV_MIN, True)
-    _cv_txt(s, f"SECTION {section_num:02d}", 0.62,5.18,4.2,0.3, 8, _CV["gray"], _CV_GO, False, PP_ALIGN.LEFT, 2.0)
+        _cv_txt(s, "/  "+subtitle, 0.60,4.22,8.2,0.5, 14, _CV["white"], _CV_MIN, True)
+    _cv_txt(s, f"SECTION {section_num:02d}", 0.62,4.92,4.2,0.3, 8, _CV["gray"], _CV_GO, False, PP_ALIGN.LEFT, 2.0)
     if en:
-        _cv_txt(s, en, 0.62,5.52,4.4,0.6, 7.5, _CV["gray"], _CV_GO, False, PP_ALIGN.LEFT, 1.2)
-    # 右の建築オブジェ（横にずらし＋透明度/角度に変化を付けてメリハリを出す）
-    _cv_grad_shape(s, MSO_SHAPE.PARALLELOGRAM, 8.70,0.25,1.45,6.30, acc["crimson"], acc["crimson3"], 52, acc["crimson"], 40, 0.6, -15, op=94)
-    _cv_grad_shape(s, MSO_SHAPE.PARALLELOGRAM, 9.98,1.15,1.05,4.85, acc["crimson2"], acc["redDark"], 46, acc["crimson"], 22, 0.5, -3, op=64)
-    _cv_shape(s, MSO_SHAPE.PARALLELOGRAM, 10.62,0.50,0.60,6.10, _CV["black"], 70, _CV["white"], 16, 0.55, -11)
-    _cv_grad_shape(s, MSO_SHAPE.PARALLELOGRAM, 11.18,1.45,1.00,4.40, acc["crimson"], acc["crimson3"], 66, acc["crimson"], 16, 0.4, 2, op=40)
-    _cv_ln(s, 9.45,0.40,0.0,5.7, _CV["white"], 20, 0.45)
-    _cv_ln(s, 11.55,1.10,0.0,4.6, acc["crimson"], 60, 1.2)
+        _cv_txt(s, en, 0.62,5.26,4.4,0.6, 7.5, _CV["gray"], _CV_GO, False, PP_ALIGN.LEFT, 1.2)
+    # 右の建築オブジェ（1.5倍に拡大・ずらし＋角度/透明度の変化でメリハリ）
+    _cv_grad_shape(s, MSO_SHAPE.PARALLELOGRAM, 8.50,-1.33,2.18,9.45, acc["crimson"], acc["crimson3"], 52, acc["crimson"], 40, 0.6, -15, op=94)
+    _cv_grad_shape(s, MSO_SHAPE.PARALLELOGRAM, 9.87,-0.06,1.58,7.28, acc["crimson2"], acc["redDark"], 46, acc["crimson"], 22, 0.5, -3, op=64)
+    _cv_shape(s, MSO_SHAPE.PARALLELOGRAM, 10.62,-1.03,0.90,9.15, _CV["black"], 70, _CV["white"], 16, 0.55, -11)
+    _cv_grad_shape(s, MSO_SHAPE.PARALLELOGRAM, 11.08,0.35,1.50,6.60, acc["crimson"], acc["crimson3"], 66, acc["crimson"], 16, 0.4, 2, op=40)
+    _cv_ln(s, 9.55,-1.03,0.0,8.55, _CV["white"], 20, 0.45)
+    _cv_ln(s, 11.65,-0.05,0.0,6.9, acc["crimson"], 60, 1.2)
     return s
 
 def add_chart_text_slide(prs, title, sub_message, image_path, annotations, blank,
