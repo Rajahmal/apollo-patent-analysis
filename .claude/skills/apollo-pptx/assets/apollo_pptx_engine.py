@@ -51,7 +51,7 @@ GRID_LINE = RGBColor(0xE6, 0xE8, 0xEA)  # 目盛線（点線 3 4 推奨）
 
 # レイアウト・グリッド定数（原則1: 余白と整列）
 MARGIN_L = 0.9                       # Inches — 全要素を揃える固定左マージン
-CONTENT_W = 13.33 - MARGIN_L - 0.7   # Inches — コンテンツ幅（右に0.7inの余白を残す）
+CONTENT_W = 13.33 - MARGIN_L * 2     # Inches — コンテンツ幅（左右マージンを揃え中央寄せ＝右寄り解消）
 
 # ボトム定数（フッター帯は廃止。右下ページ番号のみ）
 PAGE_NUM_Y = 7.02      # Inches — 右下ページ番号のベースライン（スライド内に収める）
@@ -156,7 +156,7 @@ def set_text(p, text, size, color, bold=False, line_spacing=None, heading=False)
     heading=True で見出し明朝（Yu Mincho）を適用する。"""
     p.text = ""
     run = p.add_run()
-    run.text = text
+    run.text = str(text).replace("**", "")   # MD痕跡の保険: 単一スタイル描画では ** を必ず除去
     run.font.size = size
     run.font.color.rgb = color
     run.font.bold = bold
@@ -998,7 +998,7 @@ def add_chart_text_slide(prs, title, sub_message, image_path, annotations, blank
     sub_y = add_title_shape(slide, title)
     content_y = add_sub_message(slide, sub_message, y=sub_y)
 
-    content_w = CONTENT_W + 0.5  # （改良4）右余白も使ってチャート域を拡張
+    content_w = CONTENT_W  # （改良4）右余白も使ってチャート域を拡張
     content_x = MARGIN_L
     gap = 0.04  # （task2→さらに寄せる）注釈をグラフへ密着。チャートは chart_ratio 0.715 で約5%拡大
     chart_w = content_w * chart_ratio - gap / 2
@@ -1150,7 +1150,7 @@ def add_kpi_slide(prs, title, sub_message, kpis, blank,
     content_y = add_sub_message(slide, sub_message, y=sub_y)
 
     n = len(kpis)
-    available_w = CONTENT_W + 0.5
+    available_w = CONTENT_W
     start_x = MARGIN_L
     gap = 0.24
 
@@ -1702,90 +1702,82 @@ def add_progress_bar_slide(prs, title, sub_message, items, blank,
 
 
 def add_triangle_slide(prs, title, sub_message, elements, blank,
-                       source=None, page_num=None):
-    """3要素トライアングル関係図
+                       source=None, page_num=None, center="相互強化"):
+    """3要素の収束関係図（技術・市場・政策が中心へ収束＝相互強化）。
 
-    elements: [
-        {"title":"技術", "body":"SiC/GaN半導体", "color":NAVY},
-        {"title":"市場", "body":"EV・再エネ需要", "color":ACCENT},
-        {"title":"政策", "body":"グリーン成長戦略", "color":GREEN_ACCENT},
-    ]
-    上1 + 下2 の三角配置 + 関係矢印
+    elements: [{"title":"技術","body":"...","color":INK},
+               {"title":"市場","body":"...","color":ACCENT},
+               {"title":"政策","body":"...","color":MEDIUM_GRAY}]
+    3枚の角丸カードを三角配置し、中央ノード(center)へ矢印を収束させる。
+    旧・細い灰色直線の三角（チープ）は廃止。center は中心ノードの短い語（例 "鉱物化"）。
     """
     slide = prs.slides.add_slide(blank)
     sub_y = add_title_shape(slide, title)
     content_y = add_sub_message(slide, sub_message, y=sub_y)
 
-    card_w = 3.5
-    card_h = 2.0
-    colors = [NAVY, ACCENT, GREEN_ACCENT]
-
-    # 三角の3頂点座標
+    cx = MARGIN_L + CONTENT_W / 2.0
+    avail_top = content_y + 0.10
+    avail_bot = 6.62
+    cardw, cardh, hdr_h = 3.45, 1.68, 0.52
     positions = [
-        (5.0, content_y + 0.2),          # 上中央
-        (1.5, content_y + 2.8),          # 左下
-        (8.5, content_y + 2.8),          # 右下
+        (cx - cardw / 2.0, avail_top),                          # 上中央
+        (MARGIN_L + 0.15, avail_bot - cardh),                   # 左下
+        (MARGIN_L + CONTENT_W - cardw - 0.15, avail_bot - cardh),  # 右下
     ]
+    colors = [INK, ACCENT, MEDIUM_GRAY]
+    node_cx, node_cy, node_r = cx, (avail_top + avail_bot) / 2.0 + 0.05, 0.92
 
+    # 1) 収束矢印（背面）: 各カード中心 → 中央ノード端（矢じりは中央側＝収束を表現）
+    for (px, py) in positions:
+        ccx, ccy = px + cardw / 2.0, py + cardh / 2.0
+        dx, dy = node_cx - ccx, node_cy - ccy
+        d = math.hypot(dx, dy) or 1.0
+        ex, ey = node_cx - dx / d * (node_r + 0.06), node_cy - dy / d * (node_r + 0.06)
+        c = slide.shapes.add_connector(1, Inches(ccx), Inches(ccy), Inches(ex), Inches(ey))
+        c.line.color.rgb = ACCENT; c.line.width = Pt(2.4)
+        try: c.shadow.inherit = False
+        except Exception: pass
+        _ln = c._element.find('.//' + f'{{{A_NS}}}ln')
+        if _ln is not None:
+            _te = etree.SubElement(_ln, f'{{{A_NS}}}tailEnd')
+            _te.set('type', 'triangle'); _te.set('w', 'med'); _te.set('len', 'med')
+
+    # 2) 中央ノード（クリムゾンの円＝収束点）
+    node = slide.shapes.add_shape(MSO_SHAPE.OVAL, Inches(node_cx - node_r), Inches(node_cy - node_r),
+                                  Inches(node_r * 2), Inches(node_r * 2))
+    node.fill.solid(); node.fill.fore_color.rgb = ACCENT; node.line.fill.background()
+    try: node.shadow.inherit = False
+    except Exception: pass
+    ntf = node.text_frame; ntf.word_wrap = True
+    try: ntf.vertical_anchor = MSO_ANCHOR.MIDDLE
+    except Exception: pass
+    np_ = ntf.paragraphs[0]; np_.alignment = PP_ALIGN.CENTER
+    nr = np_.add_run(); nr.text = str(center); nr.font.size = Pt(15); nr.font.bold = True
+    nr.font.color.rgb = WHITE; _apply_font(nr, heading=True)
+    np2 = ntf.add_paragraph(); np2.alignment = PP_ALIGN.CENTER
+    nr2 = np2.add_run(); nr2.text = "▲"; nr2.font.size = Pt(12); nr2.font.color.rgb = WHITE; _apply_font(nr2)
+
+    # 3) 3枚の角丸カード（色付きヘッダー＋本文）＝矢印・ノードの前面
     for i, (elem, (px, py)) in enumerate(zip(elements[:3], positions)):
-        color = elem.get("color", colors[i % len(colors)])
-
-        # カードヘッダー（長方形）
-        hdr = slide.shapes.add_shape(
-            MSO_SHAPE.RECTANGLE, Inches(px), Inches(py),
-            Inches(card_w), Inches(0.45)
-        )
-        hdr.fill.solid()
-        hdr.fill.fore_color.rgb = color
-        hdr.line.fill.background()
-
-        txH = slide.shapes.add_textbox(Inches(px + 0.1), Inches(py + 0.05),
-                                        Inches(card_w - 0.2), Inches(0.35))
-        set_text(txH.text_frame.paragraphs[0], elem["title"], Pt(14), WHITE, bold=True)
-        txH.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
-
-        # カードボディ
-        bdy = slide.shapes.add_shape(
-            MSO_SHAPE.RECTANGLE, Inches(px), Inches(py + 0.45),
-            Inches(card_w), Inches(card_h - 0.45)
-        )
-        bdy.fill.solid()
-        bdy.fill.fore_color.rgb = LIGHT_GRAY
-        bdy.line.fill.background()   # （枠線削除）テキストオブジェクトの枠線は付けない
-
-        txB = slide.shapes.add_textbox(Inches(px + 0.15), Inches(py + 0.55),
-                                        Inches(card_w - 0.3), Inches(card_h - 0.65))
-        tf = txB.text_frame
-        tf.word_wrap = True
-        tf.auto_size = MSO_AUTO_SIZE.NONE
-        add_rich_runs(tf.paragraphs[0], elem.get("body", ""),
-                      base_size=Pt(12), base_color=DARK_GRAY, bold_color=NAVY, line_spacing=1.4)
-
-    # 関係矢印（3辺）
-    arrow_pairs = [(0, 1), (0, 2), (1, 2)]
-    for a, b in arrow_pairs:
-        ax = positions[a][0] + card_w / 2
-        ay = positions[a][1] + card_h
-        bx = positions[b][0] + card_w / 2
-        by = positions[b][1]
-        if b == 2 and a == 1:
-            ay = positions[a][1] + card_h / 2
-            by = positions[b][1] + card_h / 2
-        conn = slide.shapes.add_connector(
-            1, Inches(ax), Inches(ay), Inches(bx), Inches(by)
-        )
-        conn.line.color.rgb = MEDIUM_GRAY
-        conn.line.width = Emu(12700)
-        ln = conn._element.find('.//' + f'{{{A_NS}}}ln')
-        if ln is not None:
-            tailEnd = etree.SubElement(ln, f'{{{A_NS}}}tailEnd')
-            tailEnd.set('type', 'triangle')
-            tailEnd.set('w', 'med')
-            tailEnd.set('len', 'med')
-            headEnd = etree.SubElement(ln, f'{{{A_NS}}}headEnd')
-            headEnd.set('type', 'triangle')
-            headEnd.set('w', 'med')
-            headEnd.set('len', 'med')
+        color = elem.get("color", colors[i % 3])
+        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(px), Inches(py), Inches(cardw), Inches(cardh))
+        try: card.adjustments[0] = 0.07
+        except Exception: pass
+        card.fill.solid(); card.fill.fore_color.rgb = LIGHT_GRAY; card.line.fill.background()
+        try: card.shadow.inherit = False
+        except Exception: pass
+        hdr = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(px), Inches(py), Inches(cardw), Inches(hdr_h))
+        try: hdr.adjustments[0] = 0.12
+        except Exception: pass
+        hdr.fill.solid(); hdr.fill.fore_color.rgb = color; hdr.line.fill.background()
+        try: hdr.shadow.inherit = False
+        except Exception: pass
+        th = slide.shapes.add_textbox(Inches(px), Inches(py + 0.06), Inches(cardw), Inches(hdr_h - 0.10))
+        thp = th.text_frame.paragraphs[0]; thp.alignment = PP_ALIGN.CENTER
+        set_text(thp, elem.get("title", ""), Pt(15), WHITE, bold=True, heading=True)
+        tb = slide.shapes.add_textbox(Inches(px + 0.18), Inches(py + hdr_h + 0.08), Inches(cardw - 0.36), Inches(cardh - hdr_h - 0.16))
+        tbt = tb.text_frame; tbt.word_wrap = True; tbt.auto_size = MSO_AUTO_SIZE.NONE
+        add_rich_runs(tbt.paragraphs[0], elem.get("body", ""), base_size=Pt(11.5), base_color=DARK_GRAY, bold_color=INK, line_spacing=1.3)
 
     if source:
         add_source_label(slide, source)
@@ -2197,15 +2189,18 @@ def add_chapter_intro_slide(prs, eyebrow, title, bullets, blank,
     col_r_x = MARGIN_L + col_l_w + 0.6
     col_r_w = 13.33 - col_r_x - 0.7
 
-    # （改良5）章導入のテキストを各3段階拡大（EYEBROW 11→14 / 見出し 24→32 / 箇条書き 14→18）
+    # 左の見出し高さ（タイトル行数に連動）と右の箇条書き高さを別々に見積もり、全体を垂直センタリング
+    title_lines = str(title).count("\n") + 1
+    left_h = 0.55 + title_lines * 0.56
     n = max(1, len(bullets))
-    block_h = min(5.2, n * 0.66 + 0.45)
-    top_y = max(1.1, (7.0 - block_h) / 2.0)
+    right_h = min(5.9, n * 1.05 + 0.4)
+    content_h = max(left_h, right_h)
+    top_y = max(0.85, (7.05 - content_h) / 2.0)
 
-    # 左カラム: EYEBROW（赤）+ 大見出し（明朝）+ クリムゾン縦バー
+    # 左カラム: EYEBROW（赤）+ 大見出し（明朝）+ クリムゾン縦バー（見出し高さに連動）
     bar = slide.shapes.add_shape(
         MSO_SHAPE.RECTANGLE, Inches(col_l_x), Inches(top_y + 0.05),
-        Inches(0.06), Inches(block_h - 0.1)
+        Inches(0.06), Inches(left_h - 0.1)
     )
     bar.fill.solid(); bar.fill.fore_color.rgb = ACCENT; bar.line.fill.background()
 
@@ -2215,20 +2210,32 @@ def add_chapter_intro_slide(prs, eyebrow, title, bullets, blank,
     set_text(eb.text_frame.paragraphs[0], eyebrow, Pt(14), ACCENT, bold=True, heading=True)
 
     hd = slide.shapes.add_textbox(Inches(col_l_x + 0.24), Inches(top_y + 0.50),
-                                  Inches(col_l_w + 0.2), Inches(block_h - 0.50))
+                                  Inches(col_l_w + 0.2), Inches(left_h))
     htf = hd.text_frame; htf.word_wrap = True; htf.auto_size = MSO_AUTO_SIZE.NONE
     set_text(htf.paragraphs[0], title, Pt(32), INK, bold=True, line_spacing=1.20, heading=True)
 
-    # 右カラム: 箇条書き（Gothic・各項目に赤マーカー）
-    bd = slide.shapes.add_textbox(Inches(col_r_x), Inches(top_y), Inches(col_r_w), Inches(block_h))
+    # 右カラム: 箇条書き。「**見出し**：説明」は見出しを太字、コロン後に改行して説明を次行へ（可読性）
+    bd = slide.shapes.add_textbox(Inches(col_r_x), Inches(top_y), Inches(col_r_w), Inches(right_h))
     btf = bd.text_frame; btf.word_wrap = True; btf.auto_size = MSO_AUTO_SIZE.NONE
+    _hang = str(int(0.30 * 914400))   # 説明行のぶら下げインデント（マーカー幅ぶん）
     for j, line in enumerate(bullets):
+        m = re.match(r'\s*\*\*(.+?)\*\*\s*[:：]\s*(.*)', line)
         p = btf.paragraphs[0] if j == 0 else btf.add_paragraph()
-        p.space_after = Pt(10)
         mk = p.add_run(); mk.text = "▪ "
         mk.font.size = Pt(18); mk.font.color.rgb = ACCENT; mk.font.bold = True; _apply_font(mk)
-        add_rich_runs(p, line, base_size=Pt(18), base_color=DARK_GRAY,
-                      bold_color=INK, line_spacing=1.4)
+        if m:
+            head, desc = m.group(1), m.group(2)
+            rh = p.add_run(); rh.text = head
+            rh.font.size = Pt(18); rh.font.bold = True; rh.font.color.rgb = INK; _apply_font(rh)
+            p.space_after = Pt(2); p.line_spacing = 1.25
+            p2 = btf.add_paragraph(); p2.space_after = Pt(13)
+            p2._p.get_or_add_pPr().set('marL', _hang)
+            add_rich_runs(p2, desc, base_size=Pt(15), base_color=DARK_GRAY,
+                          bold_color=INK, line_spacing=1.3)
+        else:
+            add_rich_runs(p, line, base_size=Pt(18), base_color=DARK_GRAY,
+                          bold_color=INK, line_spacing=1.4)
+            p.space_after = Pt(11)
 
     if source:
         add_source_label(slide, source)
@@ -3560,8 +3567,8 @@ def add_applicant_profile_slide(prs, title, sub_message, profiles, blank,
         tf = body.text_frame; tf.word_wrap = True; tf.auto_size = MSO_AUTO_SIZE.NONE
         for j, line in enumerate(pr.get("lines", [])):
             p = tf.paragraphs[0] if j == 0 else tf.add_paragraph()
-            rr = p.add_run(); rr.text = "・" + line; rr.font.size = Pt(12)
-            rr.font.color.rgb = DARK_GRAY; _apply_font(rr); p.line_spacing = 1.3
+            add_rich_runs(p, "・" + line, base_size=Pt(12), base_color=DARK_GRAY,
+                          bold_color=INK, line_spacing=1.3)   # ** を太字処理（MD痕跡を残さない）
         y += card_h + gap
 
     if source:
@@ -3603,7 +3610,7 @@ def add_bar_chart_slide(prs, title, sub_message, categories, series, blank,
     content_y = add_sub_message(slide, sub_message, y=sub_y)
     has_text = bool(annotations)
     gap = 0.3
-    chart_w = (CONTENT_W + 0.5) * (chart_ratio if has_text else 1.0) - (gap/2 if has_text else 0)
+    chart_w = (CONTENT_W) * (chart_ratio if has_text else 1.0) - (gap/2 if has_text else 0)
     chart_x = MARGIN_L
     chart_h = 6.5 - content_y
     cd = CategoryChartData()
@@ -3653,7 +3660,7 @@ def add_bar_chart_slide(prs, title, sub_message, categories, series, blank,
     if has_text:
         tx = MARGIN_L + chart_w + gap
         add_annotation_block(slide, annotations, tx, content_y,
-                             (CONTENT_W + 0.5) * (1 - chart_ratio) - gap/2, chart_h - 0.2, font_size=13)
+                             (CONTENT_W) * (1 - chart_ratio) - gap/2, chart_h - 0.2, font_size=13)
     if source:
         add_source_label(slide, source)
     add_corner_marks(slide)  # （A）deco廃止: 明背景の分析頁にエンジンが自動でコーナーマーク

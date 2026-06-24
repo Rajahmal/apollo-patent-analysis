@@ -1013,7 +1013,7 @@ deco(add_triangle_slide(prs,
         {"title": "技術", "color": INK, "body": "鉱物化（CaCO3固定）が成熟回収を代替。海水・廃棄物・電解と融合し原料が多様化。形態制御で製品化へ。"},
         {"title": "市場", "color": ACCENT, "body": "セメント・建材・骨材＝CO2の巨大な受け皿。炭酸Caは製紙・顔料需要も。CO2を売れる製品に変える出口。"},
         {"title": "政策", "color": MEDIUM_GRAY, "body": "2020年カーボンニュートラル宣言と出願急増が同期。BECCU・ネガティブエミッションに制度的追い風。"},
-    ], blank, source="クロスモジュール統合分析", page_num=P()))
+    ], blank, source="クロスモジュール統合分析", page_num=P(), center="鉱物化"))
 
 wm = add_matrix_slide(prs,
     "ホワイトスペース：価値高×密度低の4領域を評価",
